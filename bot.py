@@ -20,7 +20,7 @@ from aiogram.filters import CommandStart, Command
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from analytics import log_casting
-from analytics_db import init_db as init_analytics_db
+from analytics_db import init_castings_table
 from database import (
     init_db as init_users_db, close_db,
     get_user_balance, get_or_create_user,
@@ -78,8 +78,7 @@ RUNES, PROMPTS = load_data()
 bot = Bot(token=TELEGRAM_TOKEN)
 dp  = Dispatcher()
 
-# ── In-memory состояние пользователей ────────────────────────────────────────
-# { user_id: {"situation": "..."} }
+# ── In-memory состояние пользователей ─────────────────────────────────────────
 user_states: dict[int, dict] = {}
 
 
@@ -390,12 +389,12 @@ async def _perform_casting(
         interpretation = response.choices[0].message.content.strip()
 
         log_casting(
-             user_id=user_id,
-             spread_type=spread_type,
-             stars=stars,
-             input_tokens=response.usage.prompt_tokens,
-             output_tokens=response.usage.completion_tokens,
-             latency_ms=latency_ms,
+            user_id=user_id,
+            spread_type=spread_type,
+            stars=stars,
+            input_tokens=response.usage.prompt_tokens,
+            output_tokens=response.usage.completion_tokens,
+            latency_ms=latency_ms,
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
@@ -444,8 +443,8 @@ async def handle_set_webhook(request: web.Request):
 # ── Запуск ────────────────────────────────────────────────────────────────────
 
 async def on_startup(app: web.Application):
-    await init_analytics_db()
     await init_users_db()
+    await init_castings_table()
     await bot.delete_webhook(drop_pending_updates=True)
     await bot.set_webhook(WEBHOOK_URL)
     print(f"Webhook: {WEBHOOK_URL}")

@@ -1,5 +1,5 @@
-import asyncpg
-from analytics_db import pool
+import asyncio
+from database import pool
 
 
 def log_casting(
@@ -10,7 +10,6 @@ def log_casting(
     output_tokens: int,
     latency_ms: int,
 ):
-    import asyncio
     asyncio.create_task(_log(user_id, spread_type, stars, input_tokens, output_tokens, latency_ms))
 
 
