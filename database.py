@@ -1,0 +1,189 @@
+import os
+import asyncpg
+from datetime import datetime, timezone, timedelta
+
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+MSK = timezone(timedelta(hours=3))
+
+pool: asyncpg.Pool | None = None
+
+
+async def init_db():
+    global pool
+    pool = await asyncpg.create_pool(DATABASE_URL, min_size=2, max_size=10)
+    async with pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                user_id             BIGINT PRIMARY KEY,
+                username            TEXT,
+                first_name          TEXT,
+                messages_balance    INT DEFAULT 0,
+                free_used_today     INT DEFAULT 0,
+                free_reset_at       TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                channel_bonus_given BOOLEAN DEFAULT FALSE,
+                is_banned           BOOLEAN DEFAULT FALSE,
+                created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id                  SERIAL PRIMARY KEY,
+                user_id             BIGINT REFERENCES users(user_id),
+                type                TEXT NOT NULL,
+                messages_amount     INT NOT NULL,
+                stars_amount        INT,
+                telegram_charge_id  TEXT UNIQUE,
+                created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+
+
+async def close_db():
+    global pool
+    if pool:
+        await pool.close()
+
+
+async def get_or_create_user(user_id: int, username: str = None, first_name: str = None):
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            "SELECT * FROM users WHERE user_id = $1", user_id
+        )
+        if not user:
+            user = await conn.fetchrow("""
+                INSERT INTO users (user_id, username, first_name)
+                VALUES ($1, $2, $3)
+                RETURNING *
+            """, user_id, username, first_name)
+        return user
+
+
+def _next_midnight_msk() -> datetime:
+    now_msk = datetime.now(MSK)
+    return (now_msk + timedelta(days=1)).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+
+
+async def check_and_spend_message(user_id: int) -> str:
+    """
+    Проверить и списать бесплатное гадание.
+    Возвращает:
+      'spend_free'  — списано бесплатное
+      'no_messages' — бесплатное уже использовано
+      'banned'      — пользователь заблокирован
+    """
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user = await conn.fetchrow("""
+                INSERT INTO users (user_id)
+                VALUES ($1)
+                ON CONFLICT (user_id) DO UPDATE SET user_id = EXCLUDED.user_id
+                RETURNING *
+            """, user_id)
+
+            if user["is_banned"]:
+                return "banned"
+
+            now      = datetime.now(MSK)
+            free_used = user["free_used_today"]
+            reset_at  = user["free_reset_at"]
+
+            if reset_at and reset_at.astimezone(MSK).date() < now.date():
+                free_used = 0
+                await conn.execute("""
+                    UPDATE users
+                    SET free_used_today = 0, free_reset_at = $1
+                    WHERE user_id = $2
+                """, _next_midnight_msk(), user_id)
+
+            FREE_LIMIT = 1
+
+            if free_used < FREE_LIMIT:
+                await conn.execute("""
+                    UPDATE users SET free_used_today = free_used_today + 1
+                    WHERE user_id = $1
+                """, user_id)
+                return "spend_free"
+
+            return "no_messages"
+
+
+async def add_messages(
+    user_id: int,
+    messages_amount: int,
+    stars_amount: int,
+    telegram_charge_id: str
+) -> bool:
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            try:
+                await conn.execute("""
+                    INSERT INTO transactions
+                        (user_id, type, messages_amount, stars_amount, telegram_charge_id)
+                    VALUES ($1, 'purchase', $2, $3, $4)
+                """, user_id, messages_amount, stars_amount, telegram_charge_id)
+            except asyncpg.UniqueViolationError:
+                return False
+
+            await conn.execute("""
+                UPDATE users SET messages_balance = messages_balance + $1
+                WHERE user_id = $2
+            """, messages_amount, user_id)
+            return True
+
+
+async def get_user_balance(user_id: int) -> dict:
+    async with pool.acquire() as conn:
+        user = await conn.fetchrow(
+            "SELECT messages_balance, free_used_today, free_reset_at FROM users WHERE user_id = $1",
+            user_id
+        )
+        if not user:
+            return {"messages_balance": 0, "free_left": 1, "free_total": 1}
+
+        now      = datetime.now(MSK)
+        free_used = user["free_used_today"]
+        reset_at  = user["free_reset_at"]
+
+        if reset_at and reset_at.astimezone(MSK).date() < now.date():
+            free_used = 0
+
+        return {
+            "messages_balance": user["messages_balance"],
+            "free_left":        max(0, 1 - free_used),
+            "free_total":       1,
+        }
+
+
+async def give_channel_bonus(user_id: int) -> bool:
+    async with pool.acquire() as conn:
+        async with conn.transaction():
+            user = await conn.fetchrow(
+                "SELECT channel_bonus_given FROM users WHERE user_id = $1", user_id
+            )
+            if not user or user["channel_bonus_given"]:
+                return False
+
+            await conn.execute("""
+                UPDATE users
+                SET free_used_today     = 0,
+                    channel_bonus_given = TRUE
+                WHERE user_id = $1
+            """, user_id)
+            return True
+
+
+async def ban_user(user_id: int):
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET is_banned = TRUE WHERE user_id = $1", user_id
+        )
+
+
+async def unban_user(user_id: int):
+    async with pool.acquire() as conn:
+        await conn.execute(
+            "UPDATE users SET is_banned = FALSE WHERE user_id = $1", user_id
+        )
