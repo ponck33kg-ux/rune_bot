@@ -284,9 +284,6 @@ async def handle_buy_pack(callback: CallbackQuery):
         currency="XTR",
         prices=[LabeledPrice(label=pack["label"], amount=pack["stars"])],
     )
-    await message.answer(
-        "Опиши свою ситуацию или задай вопрос.\nРуны услышат тебя."
-    )
 
 @dp.callback_query(F.data == "new_casting")
 async def new_casting(callback: CallbackQuery):
