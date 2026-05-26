@@ -7,7 +7,7 @@ import hmac
 import hashlib
 import json
 import random
-from urllib.parse import parse_qsl, quote
+from urllib.parse import parse_qsl
 from datetime import datetime
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -80,9 +80,9 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ── Загрузка данных ───────────────────────────────────────────────────────────
 
 def load_data():
-    with open("Casting/runes.yaml", encoding="utf-8") as f:
+    with open("casting/runes.yaml", encoding="utf-8") as f:
         runes_data = yaml.safe_load(f)
-    with open("Casting/prompts.yaml", encoding="utf-8") as f:
+    with open("casting/prompts.yaml", encoding="utf-8") as f:
         prompts_data = yaml.safe_load(f)
     return runes_data["runes"], prompts_data["prompts"], prompts_data["system"]
 
@@ -283,6 +283,9 @@ async def handle_buy_pack(callback: CallbackQuery):
         provider_token="",
         currency="XTR",
         prices=[LabeledPrice(label=pack["label"], amount=pack["stars"])],
+    )
+    await message.answer(
+        "Опиши свою ситуацию или задай вопрос.\nРуны услышат тебя."
     )
 
 @dp.callback_query(F.data == "new_casting")
@@ -562,59 +565,12 @@ async def _perform_casting(
         f"{r['symbol']} {r['name_ru']}{'  🔄' if r['is_reversed'] else ''}"
         for r in runes
     ])
-
-    if spread_type == "single":
-        rune = runes[0]
-        url = (
-            f"{MINIAPP_URL}/casting_single.html"
-            f"?rune={quote(rune['name_ru'])}"
-            f"&reversed={'1' if rune['is_reversed'] else '0'}"
-            f"&text={quote(greeting)}"
-        )
-        await bot.send_message(
-            chat_id, rune_list,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="⚡ Открыть расклад", web_app=WebAppInfo(url=url))],
-                [InlineKeyboardButton(text=f"🎲 Перебросить руны ({SPREADS['single']['cost']} монета)", callback_data="recast_single")],
-                [InlineKeyboardButton(text="🔮 Новое гадание", callback_data="new_casting")],
-            ])
-        )
-
-    elif spread_type == "triple":
-        url = (
-            f"{MINIAPP_URL}/casting_triple.html"
-            f"?rune1={quote(runes[0]['name_ru'])}&reversed1={'1' if runes[0]['is_reversed'] else '0'}"
-            f"&rune2={quote(runes[1]['name_ru'])}&reversed2={'1' if runes[1]['is_reversed'] else '0'}"
-            f"&rune3={quote(runes[2]['name_ru'])}&reversed3={'1' if runes[2]['is_reversed'] else '0'}"
-            f"&text={quote(greeting)}"
-        )
-        await bot.send_message(
-            chat_id, rune_list,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🌿 Открыть расклад", web_app=WebAppInfo(url=url))],
-                [InlineKeyboardButton(text=f"🎲 Перебросить руны ({SPREADS['triple']['cost']} монеты)", callback_data="recast_triple")],
-                [InlineKeyboardButton(text="🔮 Новое гадание", callback_data="new_casting")],
-            ])
-        )
-
-    elif spread_type == "five":
-        url = (
-            f"{MINIAPP_URL}/casting_five.html"
-            f"?rune1={quote(runes[0]['name_ru'])}&reversed1={'1' if runes[0]['is_reversed'] else '0'}"
-            f"&rune2={quote(runes[1]['name_ru'])}&reversed2={'1' if runes[1]['is_reversed'] else '0'}"
-            f"&rune3={quote(runes[2]['name_ru'])}&reversed3={'1' if runes[2]['is_reversed'] else '0'}"
-            f"&rune4={quote(runes[3]['name_ru'])}&reversed4={'1' if runes[3]['is_reversed'] else '0'}"
-            f"&rune5={quote(runes[4]['name_ru'])}&reversed5={'1' if runes[4]['is_reversed'] else '0'}"
-            f"&text={quote(greeting)}"
-        )
-        await bot.send_message(
-            chat_id, rune_list,
-            reply_markup=InlineKeyboardMarkup(inline_keyboard=[
-                [InlineKeyboardButton(text="🌌 Открыть расклад", web_app=WebAppInfo(url=url))],
-                [InlineKeyboardButton(text=f"🎲 Перебросить руны ({SPREADS['five']['cost']} монет)", callback_data="recast_five")],
-                [InlineKeyboardButton(text="🔮 Новое гадание", callback_data="new_casting")],
-            ])
-        )
+    await bot.send_message(chat_id, rune_list)
+    await bot.send_message(
+        chat_id,
+        greeting,
+        reply_markup=get_result_keyboard(spread_type)
+    )
 
 
 # ── HTTP эндпоинты ────────────────────────────────────────────────────────────
