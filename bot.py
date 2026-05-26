@@ -80,9 +80,9 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ── Загрузка данных ───────────────────────────────────────────────────────────
 
 def load_data():
-    with open("casting/runes.yaml", encoding="utf-8") as f:
+    with open("Casting/runes.yaml", encoding="utf-8") as f:
         runes_data = yaml.safe_load(f)
-    with open("casting/prompts.yaml", encoding="utf-8") as f:
+    with open("Casting/prompts.yaml", encoding="utf-8") as f:
         prompts_data = yaml.safe_load(f)
     return runes_data["runes"], prompts_data["prompts"], prompts_data["system"]
 
