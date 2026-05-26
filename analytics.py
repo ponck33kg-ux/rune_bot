@@ -1,6 +1,4 @@
 import asyncio
-from database import pool
-
 
 def log_casting(
     user_id: int,
@@ -12,7 +10,6 @@ def log_casting(
 ):
     asyncio.create_task(_log(user_id, spread_type, stars, input_tokens, output_tokens, latency_ms))
 
-
 async def _log(
     user_id: int,
     spread_type: str,
@@ -22,7 +19,8 @@ async def _log(
     latency_ms: int,
 ):
     try:
-        async with pool.acquire() as conn:
+        from database import pool
+        async with pool.acquire() as conn: # type: ignore
             await conn.execute("""
                 INSERT INTO castings
                     (user_id, spread_type, stars, input_tokens, output_tokens, latency_ms)

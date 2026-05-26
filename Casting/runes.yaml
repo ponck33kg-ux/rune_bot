@@ -2,6 +2,7 @@ runes:
   fehu:
     symbol: "ᚠ"
     name: "Fehu"
+    name_ru: "Феху"
     image: "Fehu.png"
     tags: ["богатство", "изобилие", "новое начало"]
     tags_reversed: ["потеря", "жадность", "застой"]
@@ -9,6 +10,7 @@ runes:
   uruz:
     symbol: "ᚢ"
     name: "Uruz"
+    name_ru: "Уруз"
     image: "Uruz.png"
     tags: ["сила", "здоровье", "перемены"]
     tags_reversed: ["слабость", "упущение", "болезнь"]
@@ -16,6 +18,7 @@ runes:
   thurisaz:
     symbol: "ᚦ"
     name: "Thurisaz"
+    name_ru: "Турисаз"
     image: "Thurisaz.png"
     tags: ["защита", "испытание", "удар судьбы"]
     tags_reversed: ["уязвимость", "опасность", "слепота"]
@@ -23,6 +26,7 @@ runes:
   ansuz:
     symbol: "ᚨ"
     name: "Ansuz"
+    name_ru: "Ансуз"
     image: "Ansuz.png"
     tags: ["мудрость", "послание", "вдохновение"]
     tags_reversed: ["обман", "молчание", "непонимание"]
@@ -30,6 +34,7 @@ runes:
   raidho:
     symbol: "ᚱ"
     name: "Raidho"
+    name_ru: "Райдо"
     image: "Raidho.png"
     tags: ["путь", "движение", "решение"]
     tags_reversed: ["застревание", "задержка", "неверный путь"]
@@ -37,6 +42,7 @@ runes:
   kaunan:
     symbol: "ᚲ"
     name: "Kaunan"
+    name_ru: "Кано"
     image: "Kaunan.png"
     tags: ["знание", "свет", "творчество"]
     tags_reversed: ["тьма", "невежество", "потеря"]
@@ -44,6 +50,7 @@ runes:
   gebo:
     symbol: "ᚷ"
     name: "Gebo"
+    name_ru: "Гебо"
     image: "Gebo.png"
     tags: ["дар", "партнёрство", "баланс"]
     tags_reversed: ["долг", "зависимость", "дисбаланс"]
@@ -51,6 +58,7 @@ runes:
   wunjo:
     symbol: "ᚹ"
     name: "Wunjo"
+    name_ru: "Вуньо"
     image: "Wunjo.png"
     tags: ["радость", "гармония", "успех"]
     tags_reversed: ["печаль", "разлад", "иллюзия"]
@@ -58,6 +66,7 @@ runes:
   hagalaz:
     symbol: "ᚺ"
     name: "Hagalaz"
+    name_ru: "Хагалаз"
     image: "Hagalaz.png"
     tags: ["перемены", "разрушение", "очищение"]
     tags_reversed: ["хаос", "застревание", "неизбежность"]
@@ -65,6 +74,7 @@ runes:
   nauthiz:
     symbol: "ᚾ"
     name: "Nauthiz"
+    name_ru: "Наутиз"
     image: "Nauthiz.png"
     tags: ["нужда", "терпение", "урок"]
     tags_reversed: ["отчаяние", "принуждение", "сопротивление"]
@@ -72,6 +82,7 @@ runes:
   isa:
     symbol: "ᛁ"
     name: "Isa"
+    name_ru: "Иса"
     image: "Isa.png"
     tags: ["пауза", "покой", "концентрация"]
     tags_reversed: ["заморозка", "изоляция", "ego"]
@@ -79,6 +90,7 @@ runes:
   jera:
     symbol: "ᛃ"
     name: "Jera"
+    name_ru: "Йера"
     image: "Jera.png"
     tags: ["цикл", "урожай", "награда"]
     tags_reversed: ["задержка", "повторение ошибок", "нетерпение"]
@@ -86,6 +98,7 @@ runes:
   eihwaz:
     symbol: "ᛇ"
     name: "Eihwaz"
+    name_ru: "Эйваз"
     image: "Eihwaz.png"
     tags: ["стойкость", "трансформация", "связь миров"]
     tags_reversed: ["слабость", "путаница", "страх смерти"]
@@ -93,6 +106,7 @@ runes:
   perthro:
     symbol: "ᛈ"
     name: "Perthro"
+    name_ru: "Перт"
     image: "Perthro.png"
     tags: ["тайна", "судьба", "скрытое"]
     tags_reversed: ["секреты", "зависимость", "неизвестность"]
@@ -100,6 +114,7 @@ runes:
   algiz:
     symbol: "ᛉ"
     name: "Algiz"
+    name_ru: "Альгиз"
     image: "Algiz.png"
     tags: ["защита", "интуиция", "связь с высшим"]
     tags_reversed: ["уязвимость", "игнорирование знаков", "опасность"]
@@ -107,6 +122,7 @@ runes:
   sowilo:
     symbol: "ᛊ"
     name: "Sowilo"
+    name_ru: "Соулу"
     image: "Sowilo.png"
     tags: ["победа", "энергия", "ясность"]
     tags_reversed: ["самообман", "выгорание", "слепота"]
@@ -114,6 +130,7 @@ runes:
   tiwaz:
     symbol: "ᛏ"
     name: "Tiwaz"
+    name_ru: "Тейваз"
     image: "Tiwaz.png"
     tags: ["справедливость", "воля", "жертва"]
     tags_reversed: ["несправедливость", "поражение", "слабость воли"]
@@ -121,6 +138,7 @@ runes:
   berkana:
     symbol: "ᛒ"
     name: "Berkana"
+    name_ru: "Беркана"
     image: "Berkana.png"
     tags: ["рост", "забота", "новая жизнь"]
     tags_reversed: ["тревога", "беспокойство", "застой роста"]
@@ -128,6 +146,7 @@ runes:
   ehwaz:
     symbol: "ᛖ"
     name: "Ehwaz"
+    name_ru: "Эваз"
     image: "Ehwaz.png"
     tags: ["движение", "доверие", "партнёрство"]
     tags_reversed: ["предательство", "разрыв", "недоверие"]
@@ -135,6 +154,7 @@ runes:
   mannaz:
     symbol: "ᛗ"
     name: "Mannaz"
+    name_ru: "Манназ"
     image: "Mannaz.png"
     tags: ["человек", "разум", "сотрудничество"]
     tags_reversed: ["эгоизм", "изоляция", "самообман"]
@@ -142,6 +162,7 @@ runes:
   laguz:
     symbol: "ᛚ"
     name: "Laguz"
+    name_ru: "Лагуз"
     image: "Laguz.png"
     tags: ["интуиция", "поток", "подсознание"]
     tags_reversed: ["страх", "сопротивление потоку", "путаница"]
@@ -149,6 +170,7 @@ runes:
   ingwaz:
     symbol: "ᛜ"
     name: "Ingwaz"
+    name_ru: "Ингуз"
     image: "Ingwaz.png"
     tags: ["потенциал", "завершение", "внутренняя сила"]
     tags_reversed: ["незавершённость", "рассеянность", "блок"]
@@ -156,6 +178,7 @@ runes:
   othalan:
     symbol: "ᛞ"
     name: "Othalan"
+    name_ru: "Одал"
     image: "Othalan.png"
     tags: ["наследие", "корни", "дом"]
     tags_reversed: ["отчуждение", "потеря корней", "застревание в прошлом"]
@@ -163,6 +186,7 @@ runes:
   dagaz:
     symbol: "ᛟ"
     name: "Dagaz"
+    name_ru: "Дагаз"
     image: "Dagaz.png"
     tags: ["рассвет", "прорыв", "трансформация"]
     tags_reversed: ["слепота", "конец цикла", "задержка рассвета"]

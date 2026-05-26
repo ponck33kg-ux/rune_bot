@@ -1,8 +1,6 @@
-from database import pool
-
-
 async def init_castings_table():
-    async with pool.acquire() as conn:
+    from database import pool
+    async with pool.acquire() as conn: # type: ignore
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS castings (
                 id            SERIAL PRIMARY KEY,
