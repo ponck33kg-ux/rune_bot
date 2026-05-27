@@ -348,17 +348,15 @@ async def handle_web_app_data(message: Message):
         first_name=message.from_user.first_name,
     )
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
-
-    # if spend_result == "banned":
-    #     return
-
-    # if spend_result == "no_coins":
-    #     await message.answer(
-    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    spend_result = await check_and_spend_coins(user_id, spread_type)
+    if spend_result == "banned":
+        return
+    if spend_result == "no_coins":
+        await message.answer(
+            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+            reply_markup=get_no_coins_keyboard()
+        )
+        return
 
     user_states[user_id] = {"situation": situation, "spread_type": spread_type}
 
@@ -416,19 +414,19 @@ async def handle_spread(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
+    spend_result = await check_and_spend_coins(user_id, spread_type)
 
-    # if spend_result == "banned":
-    #     await callback.answer("Доступ ограничен.", show_alert=True)
-    #     return
+    if spend_result == "banned":
+         await callback.answer("Доступ ограничен.", show_alert=True)
+         return
 
-    # if spend_result == "no_coins":
-    #     await callback.answer()
-    #     await callback.message.answer(  # type: ignore
-    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    if spend_result == "no_coins":
+         await callback.answer()
+         await callback.message.answer(  # type: ignore
+            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+           reply_markup=get_no_coins_keyboard()
+         )
+         return
 
     user_states[user_id]["spread_type"] = spread_type
 
@@ -459,19 +457,19 @@ async def handle_recast(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
+    spend_result = await check_and_spend_coins(user_id, spread_type)
 
-    # if spend_result == "banned":
-    #     await callback.answer("Доступ ограничен.", show_alert=True)
-    #     return
+    if spend_result == "banned":
+        await callback.answer("Доступ ограничен.", show_alert=True)
+        return
 
-    # if spend_result == "no_coins":
-    #     await callback.answer()
-    #     await callback.message.answer(  # type: ignore
-    #         "Недостаточно монет.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    if spend_result == "no_coins":
+        await callback.answer()
+        await callback.message.answer(  # type: ignore
+            "Недостаточно монет.\nПополни баланс и продолжи путь.",
+            reply_markup=get_no_coins_keyboard()
+         )
+        return
 
     await callback.answer()
     await _perform_casting(
@@ -638,6 +636,7 @@ async def on_startup(app: web.Application):
     await init_users_db()
     await init_castings_table()
     await bot.delete_webhook(drop_pending_updates=True)
+    await bot.set_webhook(WEBHOOK_URL)
     print("Бот запущен")
 
 async def on_shutdown(app: web.Application):
