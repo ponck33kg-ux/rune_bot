@@ -662,6 +662,7 @@ async def handle_cast(request: web.Request):
         return web.json_response({"ok": False, "error": "no_coins"})
 
     runes = cast_runes(SPREADS[spread_type]["count"])
+    print(f"CAST RESULT: {[{'name': r['name_ru'], 'reversed': r['is_reversed']} for r in runes]}")
 
     interpretation = "Руны не смогли открыться. Попробуй снова."
     try:
