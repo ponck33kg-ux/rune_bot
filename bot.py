@@ -221,7 +221,7 @@ async def cmd_start(message: Message):
     )
 
     await message.answer(
-        "🎁 Подпишись на канал и получи 3 монеты бесплатно!",
+        "🎁 Подпишись на канал и получи 10 монет бесплатно!",
         reply_markup=get_channel_keyboard()
     )
 
@@ -314,7 +314,7 @@ async def check_subscription(callback: CallbackQuery):
     given = await give_channel_bonus(user_id)
     if given:
         await callback.answer(
-            "Спасибо за подписку! +3 монеты зачислены ✨",
+            "Спасибо за подписку! 10 монет зачислено ✨",
             show_alert=True
         )
         await callback.message.delete()  # type: ignore

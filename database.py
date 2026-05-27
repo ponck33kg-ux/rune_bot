@@ -211,13 +211,13 @@ async def give_channel_bonus(user_id: int) -> bool:
 
             await conn.execute("""
                 UPDATE users
-                SET coins_balance       = coins_balance + 3,
+                SET coins_balance       = coins_balance + 10,
                     channel_bonus_given = TRUE
                 WHERE user_id = $1
             """, user_id)
             await conn.execute("""
                 INSERT INTO transactions (user_id, type, coins_amount)
-                VALUES ($1, 'channel_bonus', 3)
+                VALUES ($1, 'channel_bonus', 10)
             """, user_id)
             return True
 
