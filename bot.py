@@ -80,9 +80,9 @@ client = OpenAI(api_key=OPENAI_API_KEY)
 # ── Загрузка данных ───────────────────────────────────────────────────────────
 
 def load_data():
-    with open("Casting/runes.yaml", encoding="utf-8") as f:
+    with open("casting/runes.yaml", encoding="utf-8") as f:
         runes_data = yaml.safe_load(f)
-    with open("Casting/prompts.yaml", encoding="utf-8") as f:
+    with open("casting/prompts.yaml", encoding="utf-8") as f:
         prompts_data = yaml.safe_load(f)
     return runes_data["runes"], prompts_data["prompts"], prompts_data["system"]
 
@@ -284,7 +284,7 @@ async def handle_buy_pack(callback: CallbackQuery):
         currency="XTR",
         prices=[LabeledPrice(label=pack["label"], amount=pack["stars"])],
     )
-
+    
 @dp.callback_query(F.data == "new_casting")
 async def new_casting(callback: CallbackQuery):
     if not callback.from_user or not callback.message:
@@ -348,15 +348,17 @@ async def handle_web_app_data(message: Message):
         first_name=message.from_user.first_name,
     )
 
-    spend_result = await check_and_spend_coins(user_id, spread_type)
-    if spend_result == "banned":
-        return
-    if spend_result == "no_coins":
-        await message.answer(
-            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-            reply_markup=get_no_coins_keyboard()
-        )
-        return
+    # spend_result = await check_and_spend_coins(user_id, spread_type)
+
+    # if spend_result == "banned":
+    #     return
+
+    # if spend_result == "no_coins":
+    #     await message.answer(
+    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+    #         reply_markup=get_no_coins_keyboard()
+    #     )
+    #     return
 
     user_states[user_id] = {"situation": situation, "spread_type": spread_type}
 
@@ -414,19 +416,19 @@ async def handle_spread(callback: CallbackQuery):
         await callback.answer()
         return
 
-    spend_result = await check_and_spend_coins(user_id, spread_type)
+    # spend_result = await check_and_spend_coins(user_id, spread_type)
 
-    if spend_result == "banned":
-         await callback.answer("Доступ ограничен.", show_alert=True)
-         return
+    # if spend_result == "banned":
+    #     await callback.answer("Доступ ограничен.", show_alert=True)
+    #     return
 
-    if spend_result == "no_coins":
-         await callback.answer()
-         await callback.message.answer(  # type: ignore
-            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-           reply_markup=get_no_coins_keyboard()
-         )
-         return
+    # if spend_result == "no_coins":
+    #     await callback.answer()
+    #     await callback.message.answer(  # type: ignore
+    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+    #         reply_markup=get_no_coins_keyboard()
+    #     )
+    #     return
 
     user_states[user_id]["spread_type"] = spread_type
 
@@ -457,19 +459,19 @@ async def handle_recast(callback: CallbackQuery):
         await callback.answer()
         return
 
-    spend_result = await check_and_spend_coins(user_id, spread_type)
+    # spend_result = await check_and_spend_coins(user_id, spread_type)
 
-    if spend_result == "banned":
-        await callback.answer("Доступ ограничен.", show_alert=True)
-        return
+    # if spend_result == "banned":
+    #     await callback.answer("Доступ ограничен.", show_alert=True)
+    #     return
 
-    if spend_result == "no_coins":
-        await callback.answer()
-        await callback.message.answer(  # type: ignore
-            "Недостаточно монет.\nПополни баланс и продолжи путь.",
-            reply_markup=get_no_coins_keyboard()
-         )
-        return
+    # if spend_result == "no_coins":
+    #     await callback.answer()
+    #     await callback.message.answer(  # type: ignore
+    #         "Недостаточно монет.\nПополни баланс и продолжи путь.",
+    #         reply_markup=get_no_coins_keyboard()
+    #     )
+    #     return
 
     await callback.answer()
     await _perform_casting(
@@ -624,7 +626,83 @@ async def handle_create_invoice(request: web.Request):
     )
     return web.json_response({"ok": True})
 
-async def handle_set_webhook(request: web.Request):
+async def handle_cast(request: web.Request):
+    """Гадание из Mini App."""
+    try:
+        data = await request.json()
+    except Exception:
+        return web.json_response({"ok": False, "error": "invalid json"})
+
+    init_data   = data.get("init_data", "")
+    spread_type = data.get("spread_type", "single")
+    situation   = data.get("situation", "")
+
+    if not situation:
+        return web.json_response({"ok": False, "error": "no situation"})
+
+    if spread_type not in SPREADS:
+        return web.json_response({"ok": False, "error": "unknown spread"})
+
+    user_data = validate_init_data(init_data)
+    if not user_data:
+        return web.json_response({"ok": False, "error": "invalid init_data"})
+
+    user_id    = int(user_data.get("id", 0))
+    first_name = user_data.get("first_name", "странник")
+
+    if not user_id:
+        return web.json_response({"ok": False, "error": "no user_id"})
+
+    await get_or_create_user(user_id, username=user_data.get("username"), first_name=first_name)
+
+    spend_result = await check_and_spend_coins(user_id, spread_type)
+    if spend_result == "banned":
+        return web.json_response({"ok": False, "error": "banned"})
+    if spend_result == "no_coins":
+        return web.json_response({"ok": False, "error": "no_coins"})
+
+    runes = cast_runes(SPREADS[spread_type]["count"])
+
+    interpretation = "Руны не смогли открыться. Попробуй снова."
+    try:
+        prompt   = build_prompt(spread_type, situation, runes)
+        response = await asyncio.to_thread(
+            client.chat.completions.create,
+            model="gpt-4o-mini",
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user",   "content": prompt}
+            ],
+            temperature=0.9,
+            max_completion_tokens=400,
+        )
+        interpretation = response.choices[0].message.content.strip()  # type: ignore
+        log_casting(
+            user_id=user_id,
+            spread_type=spread_type,
+            stars=0,
+            input_tokens=response.usage.prompt_tokens,   # type: ignore
+            output_tokens=response.usage.completion_tokens,  # type: ignore
+            latency_ms=0,
+        )
+    except Exception as e:
+        print(f"ОШИБКА модели: {e}")
+
+    greeting = build_greeting(spread_type, first_name, runes, interpretation)
+
+    return web.json_response({
+        "ok": True,
+        "spread_type": spread_type,
+        "text": greeting,
+        "runes": [
+            {
+                "name_ru":     r["name_ru"],
+                "reversed":    r["is_reversed"],
+                "file":        r["image"],
+            }
+            for r in runes
+        ]
+    })
     await bot.delete_webhook(drop_pending_updates=True)
     result = await bot.set_webhook(WEBHOOK_URL)
     return web.json_response({"ok": True, "webhook": WEBHOOK_URL, "result": str(result)})
@@ -636,14 +714,16 @@ async def on_startup(app: web.Application):
     await init_users_db()
     await init_castings_table()
     await bot.delete_webhook(drop_pending_updates=True)
-    await bot.set_webhook(WEBHOOK_URL)
     print("Бот запущен")
 
 async def on_shutdown(app: web.Application):
     await bot.delete_webhook()
     await bot.session.close()
     await close_db()
-
+async def handle_set_webhook(request: web.Request):
+    await bot.delete_webhook(drop_pending_updates=True)
+    result = await bot.set_webhook(WEBHOOK_URL)
+    return web.json_response({"ok": True, "webhook": WEBHOOK_URL, "result": str(result)})
 def main_webhook():
     app = web.Application()
     app.on_startup.append(on_startup)  # type: ignore
@@ -658,6 +738,9 @@ def main_webhook():
             allow_methods=["POST", "OPTIONS", "GET"],
         )
     })
+
+    resource_cast = cors.add(app.router.add_resource("/cast"))
+    cors.add(resource_cast.add_route("POST", handle_cast))
 
     resource_info = cors.add(app.router.add_resource("/user_info"))
     cors.add(resource_info.add_route("GET", handle_user_info))
