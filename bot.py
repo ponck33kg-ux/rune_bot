@@ -70,9 +70,10 @@ SPREADS = {
 # ── Пакеты монет ──────────────────────────────────────────────────────────────
 
 PACKAGES = {
-    "pack_10":  {"stars": 15,  "coins": 10,  "label": "10 монет — 15 ⭐"},
-    "pack_30":  {"stars": 40,  "coins": 30,  "label": "30 монет — 40 ⭐"},
-    "pack_100": {"stars": 120, "coins": 100, "label": "100 монет — 120 ⭐"},
+    "pack_10":  {"stars": 10,  "coins": 5,   "label": "5 монет — 10 ⭐"},
+    "pack_50":  {"stars": 50,  "coins": 25,  "label": "25 монет — 50 ⭐"},
+    "pack_180": {"stars": 180, "coins": 100, "label": "100 монет — 180 ⭐"},
+    "pack_800": {"stars": 800, "coins": 500, "label": "500 монет — 800 ⭐"},
 }
 
 client = OpenAI(api_key=OPENAI_API_KEY)
