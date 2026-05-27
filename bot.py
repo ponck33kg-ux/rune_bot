@@ -42,7 +42,7 @@ WEBHOOK_URL    = f"{WEBHOOK_HOST}{WEBHOOK_PATH}"
 PORT           = int(os.getenv("PORT", 8080))
 
 MINIAPP_URL      = "https://ponck33kg-ux.github.io/rune_mini_app"
-CHANNEL_USERNAME = "@your_rune_channel"
+CHANNEL_USERNAME = "@runecast"
 
 # ── Гадания ───────────────────────────────────────────────────────────────────
 
