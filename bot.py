@@ -25,7 +25,7 @@ from analytics_db import init_castings_table
 from database import (
     init_db as init_users_db, close_db,
     get_user_balance, get_or_create_user,
-    check_and_spend_coins, add_coins, give_channel_bonus,
+    check_and_spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
     SPREAD_COST,
 )
 
@@ -214,16 +214,28 @@ def get_info_keyboard() -> InlineKeyboardMarkup:
 async def cmd_start(message: Message):
     if not message.from_user:
         return
+    user_id = message.from_user.id
     await get_or_create_user(
-        message.from_user.id,
+        user_id,
         username=message.from_user.username,
         first_name=message.from_user.first_name,
     )
 
-    await message.answer(
-        "🎁 Подпишись на канал и получи 10 монет бесплатно!",
-        reply_markup=get_channel_keyboard()
-    )
+    try:
+        member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        is_subscribed = member.status in ("member", "administrator", "creator")
+    except Exception:
+        is_subscribed = False
+
+    bonus_received = await has_channel_bonus(user_id)
+
+    # Показываем кнопку всем, кроме случая 4
+    if not (is_subscribed and bonus_received):
+        await message.answer(
+            "🎁 Подпишись на канал и получи 10 монет бесплатно!",
+            reply_markup=get_channel_keyboard()
+        )
+
 
     balance_data   = await get_user_balance(message.from_user.id)
     free_available = balance_data["free_left"] > 0

@@ -222,6 +222,14 @@ async def give_channel_bonus(user_id: int) -> bool:
             return True
 
 
+async def has_channel_bonus(user_id: int) -> bool:
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow(
+            "SELECT channel_bonus_given FROM users WHERE user_id = $1", user_id
+        )
+        return bool(row and row["channel_bonus_given"])
+
+
 async def ban_user(user_id: int):
     async with pool.acquire() as conn:  # type: ignore
         await conn.execute(
