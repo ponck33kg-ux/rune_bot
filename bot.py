@@ -17,7 +17,7 @@ from aiogram.types import (
     WebAppInfo, ReplyKeyboardMarkup, KeyboardButton,
     PreCheckoutQuery, LabeledPrice, MenuButtonWebApp
 )
-from aiogram.filters import CommandStart
+from aiogram.filters import CommandStart, Command
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from analytics import log_casting
@@ -221,15 +221,13 @@ async def cmd_start(message: Message):
 
     bonus_received = await has_channel_bonus(user_id)
 
-    # Показываем кнопку всем, кроме случая 4
     if not (is_subscribed and bonus_received):
         await message.answer(
             "🎁 Подпишись на канал и получи 10 монет бесплатно!",
             reply_markup=get_channel_keyboard()
         )
 
-
-    balance_data   = await get_user_balance(message.from_user.id)
+    balance_data   = await get_user_balance(user_id)
     free_available = balance_data["free_left"] > 0
     coins          = balance_data["coins_balance"]
     free_text      = "✅ бесплатное гадание доступно" if free_available else "❌ бесплатное гадание использовано"
@@ -248,6 +246,14 @@ async def cmd_start(message: Message):
             text="🌌 Оракул",
             web_app=WebAppInfo(url=f"{MINIAPP_URL}/?free={1 if free_available else 0}")
         )
+    )
+
+
+@dp.message(Command("support"))
+async def cmd_support(message: Message):
+    await message.answer(
+        "По вопросам связанным с работой бота, "
+        "предложениями сотрудничества и рекламой обращайтесь: @RuneSupport_Bot"
     )
 
 @dp.message(F.text == "💰 Пополнить баланс")
