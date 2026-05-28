@@ -17,7 +17,7 @@ from aiogram.types import (
     WebAppInfo, ReplyKeyboardMarkup, KeyboardButton,
     PreCheckoutQuery, LabeledPrice, MenuButtonWebApp
 )
-from aiogram.filters import CommandStart, Command
+from aiogram.filters import CommandStart
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from analytics import log_casting
@@ -199,14 +199,6 @@ def get_topup_keyboard() -> InlineKeyboardMarkup:
 def get_no_coins_keyboard() -> InlineKeyboardMarkup:
     return get_topup_keyboard()
 
-def get_info_keyboard() -> InlineKeyboardMarkup:
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text="📖 Все руны",
-            web_app=WebAppInfo(url=f"{MINIAPP_URL}/runes.html")
-        )],
-    ])
-
 
 # ── Команды ───────────────────────────────────────────────────────────────────
 
@@ -256,14 +248,6 @@ async def cmd_start(message: Message):
             text="🌌 Оракул",
             web_app=WebAppInfo(url=f"{MINIAPP_URL}/?free={1 if free_available else 0}")
         )
-    )
-
-@dp.message(Command("info"))
-async def cmd_info(message: Message):
-    await message.answer(
-        "Старший Футарк — 24 руны древних германских народов.\n"
-        "Каждая несёт в себе архетипическую силу и смысл.",
-        reply_markup=get_info_keyboard()
     )
 
 @dp.message(F.text == "💰 Пополнить баланс")
