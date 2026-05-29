@@ -375,7 +375,12 @@ async def handle_web_app_data(message: Message):
 
 
 # ── Основной обработчик — сохраняем ситуацию ─────────────────────────────────
-
+@dp.message(F.text == "🔮 Гадание")
+async def handle_casting_button(message: Message):
+    await message.answer(
+        "Сначала опиши свою ситуацию или задай вопрос."
+    )
+    
 @dp.message()
 async def handle_message(message: Message):
     if not message.from_user:
