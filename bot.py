@@ -548,7 +548,7 @@ async def _perform_casting(
                 {"role": "user", "content": prompt}
             ],
             temperature=0.9,
-            max_completion_tokens=400,
+            max_completion_tokens=600,
         )
         latency_ms     = int((datetime.now() - start_time).total_seconds() * 1000)
         interpretation = response.choices[0].message.content.strip()  # type: ignore
@@ -564,18 +564,17 @@ async def _perform_casting(
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
 
-    greeting = build_greeting(spread_type, first_name, runes, interpretation)
+    lines = interpretation.split('\n')
+    recap = lines[0].strip()
+    body = '\n'.join(lines[1:]).strip()
+    full_message = f"Расклад рун для {first_name} о {recap}\n\n{body}"
 
     rune_list = " · ".join([
         f"{r['symbol']} {r['name_ru']}{'  🔄' if r['is_reversed'] else ''}"
         for r in runes
     ])
     await bot.send_message(chat_id, rune_list)
-    await bot.send_message(
-        chat_id,
-        greeting,
-        reply_markup=get_result_keyboard(spread_type)
-    )
+    await bot.send_message(chat_id, full_message, reply_markup=get_result_keyboard(spread_type))
 
 
 # ── HTTP эндпоинты ────────────────────────────────────────────────────────────
@@ -683,7 +682,7 @@ async def handle_cast(request: web.Request):
                 {"role": "user",   "content": prompt}
             ],
             temperature=0.9,
-            max_completion_tokens=400,
+            max_completion_tokens=600,
         )
         interpretation = response.choices[0].message.content.strip()  # type: ignore
         log_casting(
@@ -697,12 +696,15 @@ async def handle_cast(request: web.Request):
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
 
-    greeting = build_greeting(spread_type, first_name, runes, interpretation)
+    lines = interpretation.split('\n')
+    recap = lines[0].strip()
+    body = '\n'.join(lines[1:]).strip()
+    full_message = f"Расклад рун для {first_name} о {recap}\n\n{body}"
 
     return web.json_response({
         "ok": True,
         "spread_type": spread_type,
-        "text": greeting,
+        "text": full_message,
         "runes": [
             {
                 "name_ru":     r["name_ru"],
