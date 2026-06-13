@@ -23,6 +23,7 @@ WEBHOOK_HOST      = os.getenv("WEBHOOK_HOST", "")
 SUPPORT_WEBHOOK_PATH = "/support_webhook"
 SUPPORT_WEBHOOK_URL  = f"{WEBHOOK_HOST}{SUPPORT_WEBHOOK_PATH}"
 PORT = int(os.getenv("PORT", 8080))
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 
 bot = Bot(token=SUPPORT_BOT_TOKEN)
 dp  = Dispatcher(storage=MemoryStorage())
@@ -267,24 +268,32 @@ async def close_ticket(callback: CallbackQuery):
 # ── Webhook эндпоинт ──────────────────────────────────────────────────────────
 
 async def handle_set_webhook(request: web.Request):
+    token = request.headers.get("X-Secret", "")
+    if WEBHOOK_SECRET and token != WEBHOOK_SECRET:
+        return web.json_response({"ok": False}, status=403)
     await bot.delete_webhook(drop_pending_updates=True)
     result = await bot.set_webhook(SUPPORT_WEBHOOK_URL)
     return web.json_response({"ok": True, "webhook": SUPPORT_WEBHOOK_URL, "result": str(result)})
 
 
 # ── Запуск ────────────────────────────────────────────────────────────────────
-
+async def set_webhook_delayed():
+    await asyncio.sleep(10)
+    for attempt in range(5):
+        try:
+            await bot.set_webhook(SUPPORT_WEBHOOK_URL)
+            print(f"Support webhook установлен: {SUPPORT_WEBHOOK_URL}")
+            break
+        except Exception as e:
+            print(f"Webhook попытка {attempt + 1} не удалась: {e}")
+            await asyncio.sleep(5)
+    else:
+        print("Support webhook не удалось установить после 5 попыток")
+        
 async def on_startup(app: web.Application):
     await init_support_db()
     await bot.delete_webhook(drop_pending_updates=True)
-    for attempt in range(3):
-        try:
-            await bot.set_webhook(SUPPORT_WEBHOOK_URL)
-            print(f"Support webhook: {SUPPORT_WEBHOOK_URL}")
-            break
-        except Exception as e:
-            print(f"Webhook попытка {attempt + 1}: {e}")
-            await asyncio.sleep(2)
+    asyncio.create_task(set_webhook_delayed())
     print("Support bot запущен")
 
 

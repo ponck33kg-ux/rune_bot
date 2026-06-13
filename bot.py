@@ -43,7 +43,7 @@ PORT           = int(os.getenv("PORT", 8080))
 
 MINIAPP_URL      = "https://ponck33kg-ux.github.io/rune_mini_app"
 CHANNEL_USERNAME = "@runecast"
-
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
 # ── Гадания ───────────────────────────────────────────────────────────────────
 
 SPREADS = {
@@ -714,17 +714,26 @@ async def handle_cast(request: web.Request):
             for r in runes
         ]
     })
-    await bot.delete_webhook(drop_pending_updates=True)
-    result = await bot.set_webhook(WEBHOOK_URL)
-    return web.json_response({"ok": True, "webhook": WEBHOOK_URL, "result": str(result)})
-
-
+    
 # ── Запуск ────────────────────────────────────────────────────────────────────
-
+async def set_webhook_delayed():
+    await asyncio.sleep(10)
+    for attempt in range(5):
+        try:
+            await bot.set_webhook(WEBHOOK_URL)
+            print(f"Webhook установлен: {WEBHOOK_URL}")
+            break
+        except Exception as e:
+            print(f"Webhook попытка {attempt + 1} не удалась: {e}")
+            await asyncio.sleep(5)
+    else:
+        print("Webhook не удалось установить после 5 попыток")
+        
 async def on_startup(app: web.Application):
     await init_users_db()
     await init_castings_table()
     await bot.delete_webhook(drop_pending_updates=True)
+    asyncio.create_task(set_webhook_delayed())
     print("Бот запущен")
 
 async def on_shutdown(app: web.Application):
@@ -732,6 +741,9 @@ async def on_shutdown(app: web.Application):
     await bot.session.close()
     await close_db()
 async def handle_set_webhook(request: web.Request):
+    token = request.headers.get("X-Secret", "")
+    if WEBHOOK_SECRET and token != WEBHOOK_SECRET:
+        return web.json_response({"ok": False}, status=403)
     await bot.delete_webhook(drop_pending_updates=True)
     result = await bot.set_webhook(WEBHOOK_URL)
     return web.json_response({"ok": True, "webhook": WEBHOOK_URL, "result": str(result)})
