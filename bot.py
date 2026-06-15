@@ -25,7 +25,7 @@ from analytics_db import init_castings_table
 from database import (
     init_db as init_users_db, close_db,
     get_user_balance, get_or_create_user,
-    check_and_spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
+    check_coins, spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
     log_visit, update_user_geo,
     SPREAD_COST,
 )
@@ -355,17 +355,17 @@ async def handle_web_app_data(message: Message):
         first_name=message.from_user.first_name,
     )
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
+    check_result = await check_coins(user_id, spread_type)
 
-    # if spend_result == "banned":
-    #     return
+    if check_result == "banned":
+        return
 
-    # if spend_result == "no_coins":
-    #     await message.answer(
-    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    if check_result == "no_coins":
+        await message.answer(
+            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+            reply_markup=get_no_coins_keyboard()
+        )
+        return
 
     user_states[user_id] = {"situation": situation, "spread_type": spread_type}
 
@@ -375,6 +375,7 @@ async def handle_web_app_data(message: Message):
         situation=situation,
         first_name=message.from_user.first_name or "странник",
         chat_id=message.chat.id,
+        check_result=check_result,
     )
 
 
@@ -414,6 +415,7 @@ async def handle_message(message: Message):
 # ── Выбор расклада ────────────────────────────────────────────────────────────
 
 @dp.callback_query(F.data.startswith("spread_"))
+
 async def handle_spread(callback: CallbackQuery):
     if not callback.from_user or not callback.message:
         return
@@ -428,19 +430,19 @@ async def handle_spread(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
+    check_result = await check_coins(user_id, spread_type)
 
-    # if spend_result == "banned":
-    #     await callback.answer("Доступ ограничен.", show_alert=True)
-    #     return
+    if check_result == "banned":
+        await callback.answer("Доступ ограничен.", show_alert=True)
+        return
 
-    # if spend_result == "no_coins":
-    #     await callback.answer()
-    #     await callback.message.answer(  # type: ignore
-    #         "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    if check_result == "no_coins":
+        await callback.answer()
+        await callback.message.answer(  # type: ignore
+            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+            reply_markup=get_no_coins_keyboard()
+        )
+        return
 
     user_states[user_id]["spread_type"] = spread_type
 
@@ -451,6 +453,7 @@ async def handle_spread(callback: CallbackQuery):
         situation=state["situation"],
         first_name=callback.from_user.first_name or "странник",
         chat_id=callback.message.chat.id,
+        check_result=check_result,
     )
 
 
@@ -471,19 +474,19 @@ async def handle_recast(callback: CallbackQuery):
         await callback.answer()
         return
 
-    # spend_result = await check_and_spend_coins(user_id, spread_type)
+    check_result = await check_coins(user_id, spread_type)
 
-    # if spend_result == "banned":
-    #     await callback.answer("Доступ ограничен.", show_alert=True)
-    #     return
+    if check_result == "banned":
+        await callback.answer("Доступ ограничен.", show_alert=True)
+        return
 
-    # if spend_result == "no_coins":
-    #     await callback.answer()
-    #     await callback.message.answer(  # type: ignore
-    #         "Недостаточно монет.\nПополни баланс и продолжи путь.",
-    #         reply_markup=get_no_coins_keyboard()
-    #     )
-    #     return
+    if check_result == "no_coins":
+        await callback.answer()
+        await callback.message.answer(  # type: ignore
+            "Недостаточно монет.\nПополни баланс и продолжи путь.",
+            reply_markup=get_no_coins_keyboard()
+        )
+        return
 
     await callback.answer()
     await _perform_casting(
@@ -492,6 +495,7 @@ async def handle_recast(callback: CallbackQuery):
         situation=state["situation"],
         first_name=callback.from_user.first_name or "странник",
         chat_id=callback.message.chat.id,
+        check_result=check_result,
     )
 
 
@@ -534,11 +538,10 @@ async def successful_payment(message: Message):
 
 async def _perform_casting(
     user_id: int, spread_type: str, situation: str,
-    first_name: str, chat_id: int,
+    first_name: str, chat_id: int, check_result: str,
 ):
     runes = cast_runes(SPREADS[spread_type]["count"])
 
-    interpretation = "Руны не смогли открыться. Попробуй снова."
     try:
         await bot.send_chat_action(chat_id, "typing")
         prompt = build_prompt(spread_type, situation, runes)
@@ -568,6 +571,10 @@ async def _perform_casting(
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
+        await bot.send_message(chat_id, "Руны не смогли открыться. Попробуй снова.")
+        return
+
+    await spend_coins(user_id, spread_type, check_result)
 
     lines = interpretation.split('\n')
     recap = lines[0].strip()
@@ -590,6 +597,11 @@ def validate_init_data(init_data: str) -> dict | None:
         hash_value = parsed.pop("hash", None)
         if not hash_value:
             return None
+
+        auth_date = int(parsed.get("auth_date", 0))
+        if not auth_date or (datetime.now().timestamp() - auth_date) > 86400:
+            return None
+
         data_check_string = "\n".join(
             f"{k}={v}" for k, v in sorted(parsed.items())
         )
@@ -671,16 +683,15 @@ async def handle_cast(request: web.Request):
 
     await get_or_create_user(user_id, username=user_data.get("username"), first_name=first_name)
 
-    spend_result = await check_and_spend_coins(user_id, spread_type)
-    if spend_result == "banned":
+    check_result = await check_coins(user_id, spread_type)
+    if check_result == "banned":
         return web.json_response({"ok": False, "error": "banned"})
-    if spend_result == "no_coins":
+    if check_result == "no_coins":
         return web.json_response({"ok": False, "error": "no_coins"})
 
     runes = cast_runes(SPREADS[spread_type]["count"])
     print(f"CAST RESULT: {[{'name': r['name_ru'], 'reversed': r['is_reversed']} for r in runes]}")
 
-    interpretation = "Руны не смогли открыться. Попробуй снова."
     try:
         prompt   = build_prompt(spread_type, situation, runes)
         response = await asyncio.to_thread(
@@ -705,6 +716,9 @@ async def handle_cast(request: web.Request):
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
+        return web.json_response({"ok": False, "error": "generation_failed"})
+
+    await spend_coins(user_id, spread_type, check_result)
 
     lines = interpretation.split('\n')
     recap = lines[0].strip()
@@ -730,7 +744,7 @@ async def set_webhook_delayed():
     await asyncio.sleep(10)
     for attempt in range(5):
         try:
-            await bot.set_webhook(WEBHOOK_URL)
+            await bot.set_webhook(WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
             print(f"Webhook установлен: {WEBHOOK_URL}")
             break
         except Exception as e:
@@ -738,7 +752,8 @@ async def set_webhook_delayed():
             await asyncio.sleep(5)
     else:
         print("Webhook не удалось установить после 5 попыток")
-        
+
+    
 async def on_startup(app: web.Application):
     await init_users_db()
     await init_castings_table()
@@ -755,8 +770,9 @@ async def handle_set_webhook(request: web.Request):
     if WEBHOOK_SECRET and token != WEBHOOK_SECRET:
         return web.json_response({"ok": False}, status=403)
     await bot.delete_webhook(drop_pending_updates=True)
-    result = await bot.set_webhook(WEBHOOK_URL)
+    result = await bot.set_webhook(WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
     return web.json_response({"ok": True, "webhook": WEBHOOK_URL, "result": str(result)})
+
 def main_webhook():
     app = web.Application()
     app.on_startup.append(on_startup)  # type: ignore
@@ -781,7 +797,9 @@ def main_webhook():
     resource_invoice = cors.add(app.router.add_resource("/create_invoice"))
     cors.add(resource_invoice.add_route("POST", handle_create_invoice))
 
-    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=WEBHOOK_PATH)
+    SimpleRequestHandler(
+        dispatcher=dp, bot=bot, secret_token=WEBHOOK_SECRET
+    ).register(app, path=WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
     web.run_app(app, host="0.0.0.0", port=PORT)
 

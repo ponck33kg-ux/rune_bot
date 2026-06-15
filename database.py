@@ -112,14 +112,14 @@ def _next_midnight_msk() -> datetime:
     )
 
 
-async def check_and_spend_coins(user_id: int, spread_type: str) -> str:
+async def check_coins(user_id: int, spread_type: str) -> str:
     """
-    Проверить баланс и списать монеты за гадание.
+    Проверить доступность гадания без списания.
     Возвращает:
-      'spend_free'  — списано бесплатное (single раз в сутки)
-      'spend_paid'  — списаны монеты
-      'no_coins'    — недостаточно монет
-      'banned'      — пользователь заблокирован
+      'free'     — доступно бесплатное гадание (single раз в сутки)
+      'paid'     — будет списано с баланса монет
+      'no_coins' — недостаточно монет
+      'banned'   — пользователь заблокирован
     """
     cost = SPREAD_COST.get(spread_type, 1)
 
@@ -148,25 +148,38 @@ async def check_and_spend_coins(user_id: int, spread_type: str) -> str:
                 """, _next_midnight_msk(), user_id)
 
             if spread_type == "single" and free_used < 1:
-                await conn.execute("""
-                    UPDATE users SET free_used_today = free_used_today + 1
-                    WHERE user_id = $1
-                """, user_id)
-                return "spend_free"
+                return "free"
 
             balance = user["coins_balance"]
             if balance < cost:
                 return "no_coins"
 
-            await conn.execute("""
-                UPDATE users SET coins_balance = coins_balance - $1
-                WHERE user_id = $2
-            """, cost, user_id)
-            await conn.execute("""
-                INSERT INTO transactions (user_id, type, coins_amount)
-                VALUES ($1, 'spend', $2)
-            """, user_id, cost)
-            return "spend_paid"
+            return "paid"
+
+
+async def spend_coins(user_id: int, spread_type: str, check_result: str):
+    """
+    Списать монеты/бесплатное гадание после успешной генерации.
+    check_result — результат check_coins ('free' | 'paid').
+    """
+    cost = SPREAD_COST.get(spread_type, 1)
+
+    async with pool.acquire() as conn:  # type: ignore
+        async with conn.transaction():
+            if check_result == "free":
+                await conn.execute("""
+                    UPDATE users SET free_used_today = free_used_today + 1
+                    WHERE user_id = $1
+                """, user_id)
+            elif check_result == "paid":
+                await conn.execute("""
+                    UPDATE users SET coins_balance = coins_balance - $1
+                    WHERE user_id = $2
+                """, cost, user_id)
+                await conn.execute("""
+                    INSERT INTO transactions (user_id, type, coins_amount)
+                    VALUES ($1, 'spend', $2)
+                """, user_id, cost)
 
 
 async def add_coins(

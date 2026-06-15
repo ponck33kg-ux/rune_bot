@@ -272,16 +272,15 @@ async def handle_set_webhook(request: web.Request):
     if WEBHOOK_SECRET and token != WEBHOOK_SECRET:
         return web.json_response({"ok": False}, status=403)
     await bot.delete_webhook(drop_pending_updates=True)
-    result = await bot.set_webhook(SUPPORT_WEBHOOK_URL)
+    result = await bot.set_webhook(SUPPORT_WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
     return web.json_response({"ok": True, "webhook": SUPPORT_WEBHOOK_URL, "result": str(result)})
-
 
 # ── Запуск ────────────────────────────────────────────────────────────────────
 async def set_webhook_delayed():
     await asyncio.sleep(10)
     for attempt in range(5):
         try:
-            await bot.set_webhook(SUPPORT_WEBHOOK_URL)
+            await bot.set_webhook(SUPPORT_WEBHOOK_URL, secret_token=WEBHOOK_SECRET)
             print(f"Support webhook установлен: {SUPPORT_WEBHOOK_URL}")
             break
         except Exception as e:
@@ -309,7 +308,9 @@ def main():
     app.on_startup.append(on_startup)
     app.on_shutdown.append(on_shutdown)
     app.router.add_get("/set_webhook", handle_set_webhook)
-    SimpleRequestHandler(dispatcher=dp, bot=bot).register(app, path=SUPPORT_WEBHOOK_PATH)
+    SimpleRequestHandler(
+        dispatcher=dp, bot=bot, secret_token=WEBHOOK_SECRET
+    ).register(app, path=SUPPORT_WEBHOOK_PATH)
     setup_application(app, dp, bot=bot)
     web.run_app(app, host="0.0.0.0", port=PORT)
 
