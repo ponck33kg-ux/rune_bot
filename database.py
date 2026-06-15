@@ -63,8 +63,24 @@ async def init_db():
                 created_at          TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
-
-
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_visits (
+                id          SERIAL PRIMARY KEY,
+                user_id     BIGINT REFERENCES users(user_id),
+                source      TEXT NOT NULL,
+                created_at  TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        
+        await conn.execute("""
+            ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS language_code TEXT,
+                ADD COLUMN IF NOT EXISTS country_code  TEXT,
+                ADD COLUMN IF NOT EXISTS city          TEXT
+        """)
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_user_id ON user_visits (user_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_created_at ON user_visits (created_at)")
+       
 async def close_db():
     global pool
     if pool:
@@ -255,3 +271,50 @@ async def grant_coins(user_id: int, amount: int):
                 INSERT INTO transactions (user_id, type, coins_amount)
                 VALUES ($1, 'grant', $2)
             """, user_id, amount)
+
+async def log_visit(user_id: int, source: str):
+    """
+    Записать заход пользователя.
+    source: 'bot' | 'miniapp'
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO user_visits (user_id, source)
+            VALUES ($1, $2)
+        """, user_id, source)
+
+async def update_user_geo(
+    user_id: int,
+    language_code: str | None = None,
+    country_code: str | None = None,
+    city: str | None = None
+):
+    """
+    Обновить гео-данные пользователя.
+    Передавать только те поля, которые нужно обновить — остальные останутся как есть.
+    """
+    fields = []
+    values = []
+    idx = 1
+
+    if language_code is not None:
+        fields.append(f"language_code = ${idx}")
+        values.append(language_code)
+        idx += 1
+    if country_code is not None:
+        fields.append(f"country_code = ${idx}")
+        values.append(country_code)
+        idx += 1
+    if city is not None:
+        fields.append(f"city = ${idx}")
+        values.append(city)
+        idx += 1
+
+    if not fields:
+        return
+
+    values.append(user_id)
+    query = f"UPDATE users SET {', '.join(fields)} WHERE user_id = ${idx}"
+
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute(query, *values)

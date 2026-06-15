@@ -13,3 +13,9 @@ async def init_castings_table():
                 created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW()
             )
         """)
+        await conn.execute("""
+            ALTER TABLE castings
+                ADD COLUMN IF NOT EXISTS source TEXT
+        """)
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_castings_user_id ON castings (user_id)")
+        await conn.execute("CREATE INDEX IF NOT EXISTS idx_castings_created_at ON castings (created_at)")

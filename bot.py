@@ -26,6 +26,7 @@ from database import (
     init_db as init_users_db, close_db,
     get_user_balance, get_or_create_user,
     check_and_spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
+    log_visit, update_user_geo,
     SPREAD_COST,
 )
 
@@ -212,6 +213,9 @@ async def cmd_start(message: Message):
         username=message.from_user.username,
         first_name=message.from_user.first_name,
     )
+
+    await log_visit(user_id, source="bot")
+    await update_user_geo(user_id, language_code=message.from_user.language_code)
 
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
@@ -560,6 +564,7 @@ async def _perform_casting(
             input_tokens=response.usage.prompt_tokens,  # type: ignore
             output_tokens=response.usage.completion_tokens,  # type: ignore
             latency_ms=latency_ms,
+            source="bot",
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
@@ -605,6 +610,10 @@ async def handle_user_info(request: web.Request):
     user_id = int(user_data.get("id", 0))
     if not user_id:
         return web.json_response({"ok": False, "error": "no user_id"})
+
+    await log_visit(user_id, source="miniapp")
+    await update_user_geo(user_id, language_code=user_data.get("language_code"))
+
     balance_data = await get_user_balance(user_id)
     return web.json_response({"ok": True, **balance_data})
 
@@ -692,6 +701,7 @@ async def handle_cast(request: web.Request):
             input_tokens=response.usage.prompt_tokens,   # type: ignore
             output_tokens=response.usage.completion_tokens,  # type: ignore
             latency_ms=0,
+            source="miniapp",
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
