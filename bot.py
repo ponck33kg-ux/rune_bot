@@ -44,7 +44,9 @@ PORT           = int(os.getenv("PORT", 8080))
 
 MINIAPP_URL      = "https://ponck33kg-ux.github.io/rune_mini_app"
 CHANNEL_USERNAME = "@runecast"
-WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET", "")
+WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET") or ""
+if not WEBHOOK_SECRET:
+    print("ПРЕДУПРЕЖДЕНИЕ: WEBHOOK_SECRET не задан — /set_webhook и /webhook не защищены!")
 # ── Гадания ───────────────────────────────────────────────────────────────────
 
 SPREADS = {
@@ -690,11 +692,11 @@ async def handle_cast(request: web.Request):
         return web.json_response({"ok": False, "error": "no_coins"})
 
     runes = cast_runes(SPREADS[spread_type]["count"])
-    print(f"CAST RESULT: {[{'name': r['name_ru'], 'reversed': r['is_reversed']} for r in runes]}")
-
+    
     try:
-        prompt   = build_prompt(spread_type, situation, runes)
-        response = await asyncio.to_thread(
+        prompt     = build_prompt(spread_type, situation, runes)
+        start_time = datetime.now()
+        response   = await asyncio.to_thread(
             client.chat.completions.create,
             model="gpt-4o-mini",
             messages=[
@@ -704,16 +706,18 @@ async def handle_cast(request: web.Request):
             temperature=0.9,
             max_completion_tokens=600,
         )
-        interpretation = response.choices[0].message.content.strip()  # type: ignore
+        latency_ms     = int((datetime.now() - start_time).total_seconds() * 1000)
+        interpretation = response.choices[0].message.content.strip()
         log_casting(
             user_id=user_id,
             spread_type=spread_type,
             stars=0,
-            input_tokens=response.usage.prompt_tokens,   # type: ignore
-            output_tokens=response.usage.completion_tokens,  # type: ignore
-            latency_ms=0,
+            input_tokens=response.usage.prompt_tokens,
+            output_tokens=response.usage.completion_tokens,
+            latency_ms=latency_ms,
             source="miniapp",
         )
+        
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
         return web.json_response({"ok": False, "error": "generation_failed"})
