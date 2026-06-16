@@ -91,7 +91,7 @@ async def get_or_create_user(
     user_id: int,
     username: str | None = None,
     first_name: str | None = None
-):
+) -> tuple:
     async with pool.acquire() as conn:  # type: ignore
         user = await conn.fetchrow(
             "SELECT * FROM users WHERE user_id = $1", user_id
@@ -102,7 +102,8 @@ async def get_or_create_user(
                 VALUES ($1, $2, $3)
                 RETURNING *
             """, user_id, username, first_name)
-        return user
+            return user, True
+        return user, False
 
 
 def _next_midnight_msk() -> datetime:
@@ -331,3 +332,18 @@ async def update_user_geo(
 
     async with pool.acquire() as conn:  # type: ignore
         await conn.execute(query, *values)
+        
+async def track_referral_click(code: str):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            UPDATE referrals SET clicks = clicks + 1
+            WHERE code = $1
+        """, code)
+
+
+async def track_referral_conversion(code: str):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            UPDATE referrals SET conversions = conversions + 1
+            WHERE code = $1
+        """, code)

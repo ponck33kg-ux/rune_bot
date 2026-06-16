@@ -27,6 +27,7 @@ from database import (
     get_user_balance, get_or_create_user,
     check_coins, spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
     log_visit, update_user_geo,
+    track_referral_click, track_referral_conversion,
     SPREAD_COST,
 )
 
@@ -210,7 +211,7 @@ async def cmd_start(message: Message):
     if not message.from_user:
         return
     user_id = message.from_user.id
-    await get_or_create_user(
+    _, is_new = await get_or_create_user(
         user_id,
         username=message.from_user.username,
         first_name=message.from_user.first_name,
@@ -219,6 +220,25 @@ async def cmd_start(message: Message):
     await log_visit(user_id, source="bot")
     await update_user_geo(user_id, language_code=message.from_user.language_code)
 
+    # ── Реферальный трекинг ───────────────────────────────────────────────────
+    text   = message.text or ""
+    parts  = text.split(maxsplit=1)
+    if len(parts) > 1 and parts[1].startswith("ref_"):
+        ref_code = parts[1][4:].split("_")[0] + "_" + "_".join(parts[1][4:].split("_")[1:])
+        # ref_CODE или ref_CODE_spread → берём всё после "ref_" до конца как код
+        # Код в БД хранится как CAMPAIGN_MMDD, без spread_type
+        raw      = parts[1][4:]           # CODE или CODE_spread
+        segments = raw.split("_")
+        # Последний сегмент — spread если он в ('single','triple','five'), иначе часть кода
+        known_spreads = {"single", "triple", "five"}
+        if segments[-1] in known_spreads:
+            ref_code = "_".join(segments[:-1])
+        else:
+            ref_code = raw
+        await track_referral_click(ref_code)
+        if is_new:
+            await track_referral_conversion(ref_code)
+            
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
         is_subscribed = member.status in ("member", "administrator", "creator")
