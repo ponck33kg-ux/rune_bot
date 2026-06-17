@@ -530,16 +530,20 @@ async def pre_checkout(query: PreCheckoutQuery):
 @dp.message(F.successful_payment)
 async def successful_payment(message: Message):
     if not message.from_user or not message.successful_payment:
+        print("successful_payment: нет from_user или successful_payment в message")
         return
     payload = message.successful_payment.invoice_payload
+    print(f"successful_payment: получен payload={payload!r}")
     try:
         pack_key, user_id_str = payload.split(":")
         user_id = int(user_id_str)
-    except Exception:
+    except Exception as e:
+        print(f"successful_payment: ОШИБКА парсинга payload {payload!r}: {e}")
         return
 
     pack = PACKAGES.get(pack_key)
     if not pack:
+        print(f"successful_payment: pack_key={pack_key!r} не найден в PACKAGES")
         return
 
     success = await add_coins(
@@ -548,12 +552,15 @@ async def successful_payment(message: Message):
         stars_amount=message.successful_payment.total_amount,
         telegram_charge_id=message.successful_payment.telegram_payment_charge_id,
     )
+    print(f"successful_payment: add_coins вернул success={success}, user_id={user_id}, coins={pack['coins']}")
 
     if success:
         await message.answer(
             f"✨ На счёт зачислено {pack['coins']} монет.\n"
             f"Руны ждут твоего вопроса."
         )
+    else:
+        print(f"successful_payment: add_coins вернул False — возможен дублирующийся telegram_charge_id")
 
 
 # ── Само гадание ──────────────────────────────────────────────────────────────
