@@ -339,6 +339,10 @@ async def track_referral_click(code: str):
             UPDATE referrals SET clicks = clicks + 1
             WHERE code = $1
         """, code)
+        await conn.execute("""
+            INSERT INTO referral_events (code, event_type)
+            VALUES ($1, 'click')
+        """, code)
 
 
 async def track_referral_conversion(code: str):
@@ -346,4 +350,8 @@ async def track_referral_conversion(code: str):
         await conn.execute("""
             UPDATE referrals SET conversions = conversions + 1
             WHERE code = $1
+        """, code)
+        await conn.execute("""
+            INSERT INTO referral_events (code, event_type)
+            VALUES ($1, 'conversion')
         """, code)
