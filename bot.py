@@ -364,7 +364,7 @@ async def handle_web_app_data(message: Message):
         return
 
     spread_type = data.get("spread_type", "single")
-    situation   = data.get("situation", "")
+    situation   = data.get("situation", "")[:500]
 
     if not situation:
         await message.answer("Вопрос не получен. Попробуй снова.")
@@ -690,7 +690,7 @@ async def handle_cast(request: web.Request):
 
     init_data   = data.get("init_data", "")
     spread_type = data.get("spread_type", "single")
-    situation   = data.get("situation", "")
+    situation   = data.get("situation", "")[:500]
 
     if not situation:
         return web.json_response({"ok": False, "error": "no situation"})
