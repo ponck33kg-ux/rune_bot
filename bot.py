@@ -466,7 +466,7 @@ async def handle_message(message: Message):
     balance_data   = await get_user_balance(user_id)
     free_available = balance_data["free_left"] > 0
 
-    user_states[user_id] = {"situation": user_text}[:500]
+    user_states[user_id] = {"situation": user_text[:500]}
 
     await message.answer(
         "Руны готовы. Выбери расклад:",
