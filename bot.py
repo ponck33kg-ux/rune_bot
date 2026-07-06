@@ -8,7 +8,7 @@ import hashlib
 import json
 import random
 from urllib.parse import parse_qsl
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from openai import OpenAI
 from aiogram import Bot, Dispatcher, F
@@ -18,6 +18,7 @@ from aiogram.types import (
     PreCheckoutQuery, LabeledPrice, MenuButtonWebApp
 )
 from aiogram.filters import CommandStart, Command
+from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from analytics import log_casting
@@ -28,6 +29,7 @@ from database import (
     check_coins, spend_coins, add_coins, give_channel_bonus, has_channel_bonus,
     log_visit, update_user_geo,
     track_referral_click, track_referral_conversion,
+    get_users_for_reminder, mark_reminder_sent, mark_bot_blocked,
     SPREAD_COST,
 )
 
@@ -151,17 +153,17 @@ def get_main_keyboard() -> ReplyKeyboardMarkup:
     )
 
 def get_spread_keyboard(free_available: bool) -> InlineKeyboardMarkup:
-    single_label = (
-        f"{SPREADS['single']['name']} — бесплатно"
+    triple_label = (
+        f"{SPREADS['triple']['name']} — бесплатно"
         if free_available
-        else f"{SPREADS['single']['name']} — {SPREADS['single']['cost']} монета"
+        else f"{SPREADS['triple']['name']} — {SPREADS['triple']['cost']} монеты"
     )
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=single_label, callback_data="spread_single")],
         [InlineKeyboardButton(
-            text=f"{SPREADS['triple']['name']} — {SPREADS['triple']['cost']} монеты",
-            callback_data="spread_triple"
+            text=f"{SPREADS['single']['name']} — {SPREADS['single']['cost']} монета",
+            callback_data="spread_single"
         )],
+        [InlineKeyboardButton(text=triple_label, callback_data="spread_triple")],
         [InlineKeyboardButton(
             text=f"{SPREADS['five']['name']} — {SPREADS['five']['cost']} монет",
             callback_data="spread_five"
@@ -178,18 +180,8 @@ def get_channel_keyboard() -> InlineKeyboardMarkup:
     ])
 
 def get_result_keyboard(spread_type: str) -> InlineKeyboardMarkup:
-    cost = SPREADS[spread_type]["cost"]
-    cost_label = (
-        f"{cost} монета" if cost == 1
-        else f"{cost} монеты" if cost in (2, 3, 4)
-        else f"{cost} монет"
-    )
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(
-            text=f"🎲 Перебросить руны ({cost_label})",
-            callback_data=f"recast_{spread_type}"
-        )],
-        [InlineKeyboardButton(text="🔮 Новое гадание", callback_data="new_casting")],
+        [InlineKeyboardButton(text="➡️ Задай следующий вопрос", callback_data="new_casting")],
     ])
 
 def get_topup_keyboard() -> InlineKeyboardMarkup:
@@ -519,47 +511,6 @@ async def handle_spread(callback: CallbackQuery):
     )
 
 
-# ── Перебросить руны ──────────────────────────────────────────────────────────
-
-@dp.callback_query(F.data.startswith("recast_"))
-async def handle_recast(callback: CallbackQuery):
-    if not callback.from_user or not callback.message:
-        return
-    spread_type = (callback.data or "").replace("recast_", "")
-    user_id     = callback.from_user.id
-
-    state = user_states.get(user_id)
-    if not state or not state.get("situation"):
-        await callback.message.answer(  # type: ignore
-            "Сессия истекла. Опиши ситуацию заново."
-        )
-        await callback.answer()
-        return
-
-    check_result = await check_coins(user_id, spread_type)
-
-    if check_result == "banned":
-        await callback.answer("Доступ ограничен.", show_alert=True)
-        return
-
-    if check_result == "no_coins":
-        await callback.answer()
-        await callback.message.answer(  # type: ignore
-            "Недостаточно монет.\nПополни баланс и продолжи путь.",
-            reply_markup=get_no_coins_keyboard()
-        )
-        return
-
-    await callback.answer()
-    await _perform_casting(
-        user_id=user_id,
-        spread_type=spread_type,
-        situation=state["situation"],
-        first_name=callback.from_user.first_name or "странник",
-        chat_id=callback.message.chat.id,
-        check_result=check_result,
-    )
-
 # ── Само гадание ──────────────────────────────────────────────────────────────
 
 async def _perform_casting(
@@ -768,6 +719,59 @@ async def handle_cast(request: web.Request):
             for r in runes
         ]
     })
+   
+    # ── Ежедневное напоминание ────────────────────────────────────────────────────
+
+REMINDER_MSK = timezone(timedelta(hours=3))
+DAILY_REMINDER_HOUR_MSK = 11
+DAILY_REMINDER_TEXT = "🎁Подарочное гадание начислено! Узнай ответ на свой вопрос 💫"  # 
+
+
+def _next_reminder_time_msk() -> datetime:
+    now_msk = datetime.now(REMINDER_MSK)
+    target  = now_msk.replace(hour=DAILY_REMINDER_HOUR_MSK, minute=0, second=0, microsecond=0)
+    if target <= now_msk:
+        target += timedelta(days=1)
+    return target
+
+
+async def _send_reminder(user_id: int):
+    try:
+        await bot.send_message(user_id, DAILY_REMINDER_TEXT)
+        await mark_reminder_sent(user_id)
+    except TelegramForbiddenError:
+        await mark_bot_blocked(user_id)
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        try:
+            await bot.send_message(user_id, DAILY_REMINDER_TEXT)
+            await mark_reminder_sent(user_id)
+        except Exception as e2:
+            print(f"Ошибка повторной отправки напоминания user_id={user_id}: {e2}")
+    except Exception as e:
+        print(f"Ошибка отправки напоминания user_id={user_id}: {e}")
+
+
+async def send_daily_reminders():
+    user_ids = await get_users_for_reminder()
+    if not user_ids:
+        return
+    print(f"Рассылка напоминаний: {len(user_ids)} пользователей")
+    for user_id in user_ids:
+        await _send_reminder(user_id)
+        await asyncio.sleep(0.05)
+    print("Рассылка напоминаний завершена")
+
+
+async def daily_reminder_scheduler():
+    while True:
+        target       = _next_reminder_time_msk()
+        wait_seconds = (target - datetime.now(REMINDER_MSK)).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        try:
+            await send_daily_reminders()
+        except Exception as e:
+            print(f"Ошибка планировщика напоминаний: {e}")
     
 # ── Запуск ────────────────────────────────────────────────────────────────────
 async def set_webhook_delayed():
@@ -789,6 +793,7 @@ async def on_startup(app: web.Application):
     await init_castings_table()
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(set_webhook_delayed())
+    asyncio.create_task(daily_reminder_scheduler())
     print("Бот запущен")
 
 async def on_shutdown(app: web.Application):

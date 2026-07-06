@@ -80,6 +80,18 @@ async def init_db():
         """)
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_user_id ON user_visits (user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_created_at ON user_visits (created_at)")
+
+        await conn.execute("""
+            ALTER TABLE users
+                ADD COLUMN IF NOT EXISTS bot_blocked BOOLEAN DEFAULT FALSE
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_reminders (
+                user_id    BIGINT NOT NULL,
+                sent_date  DATE NOT NULL,
+                PRIMARY KEY (user_id, sent_date)
+            )
+        """)
        
 async def close_db():
     global pool
@@ -117,7 +129,7 @@ async def check_coins(user_id: int, spread_type: str) -> str:
     """
     Проверить доступность гадания без списания.
     Возвращает:
-      'free'     — доступно бесплатное гадание (single раз в сутки)
+      'free'     — доступно бесплатное гадание (triple раз в сутки)
       'paid'     — будет списано с баланса монет
       'no_coins' — недостаточно монет
       'banned'   — пользователь заблокирован
@@ -148,7 +160,7 @@ async def check_coins(user_id: int, spread_type: str) -> str:
                     WHERE user_id = $2
                 """, _next_midnight_msk(), user_id)
 
-            if spread_type == "single" and free_used < 1:
+            if spread_type == "triple" and free_used < 1:
                 return "free"
 
             balance = user["coins_balance"]
@@ -355,3 +367,43 @@ async def track_referral_conversion(code: str):
             INSERT INTO referral_events (code, event_type)
             VALUES ($1, 'conversion')
         """, code)
+        
+async def get_users_for_reminder() -> list[int]:
+    """
+    Пользователи, у которых бесплатное гадание фактически доступно
+    на момент рассылки (11:00 МСК), не забанены, не заблокировали бота
+    и ещё не получали напоминание сегодня (по МСК-дате).
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        rows = await conn.fetch("""
+            SELECT user_id FROM users
+            WHERE is_banned = FALSE
+              AND bot_blocked = FALSE
+              AND (
+                    free_used_today = 0
+                    OR (free_reset_at + interval '3 hours')::date
+                       < (NOW() + interval '3 hours')::date
+                  )
+              AND NOT EXISTS (
+                    SELECT 1 FROM daily_reminders
+                    WHERE daily_reminders.user_id = users.user_id
+                      AND daily_reminders.sent_date = (NOW() + interval '3 hours')::date
+              )
+        """)
+        return [row["user_id"] for row in rows]
+
+
+async def mark_reminder_sent(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO daily_reminders (user_id, sent_date)
+            VALUES ($1, (NOW() + interval '3 hours')::date)
+            ON CONFLICT (user_id, sent_date) DO NOTHING
+        """, user_id)
+
+
+async def mark_bot_blocked(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            UPDATE users SET bot_blocked = TRUE WHERE user_id = $1
+        """, user_id)
