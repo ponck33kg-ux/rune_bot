@@ -18,7 +18,7 @@ from aiogram.types import (
     PreCheckoutQuery, LabeledPrice, MenuButtonWebApp
 )
 from aiogram.filters import CommandStart, Command
-from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter
+from aiogram.exceptions import TelegramForbiddenError, TelegramRetryAfter, TelegramBadRequest
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiohttp import web
 from analytics import log_casting
@@ -100,6 +100,7 @@ dp  = Dispatcher()
 
 # ── In-memory состояние пользователей ─────────────────────────────────────────
 user_states: dict[int, dict] = {}
+casting_in_progress: set[int] = set()
 
 
 # ── Логика рун ────────────────────────────────────────────────────────────────
@@ -337,11 +338,16 @@ async def check_subscription(callback: CallbackQuery):
             "Спасибо за подписку! 10 монет зачислено ✨",
             show_alert=True
         )
-        await callback.message.delete()  # type: ignore
+        try:
+            await callback.message.delete()  # type: ignore
+        except TelegramBadRequest:
+            pass
     else:
         await callback.answer("Бонус уже был получен ранее.", show_alert=True)
-        await callback.message.delete()  # type: ignore
-
+        try:
+            await callback.message.delete()  # type: ignore
+        except TelegramBadRequest:
+            pass
 
 @dp.message(F.web_app_data)
 async def handle_web_app_data(message: Message):
@@ -369,29 +375,36 @@ async def handle_web_app_data(message: Message):
         first_name=message.from_user.first_name,
     )
 
-    check_result = await check_coins(user_id, spread_type)
-
-    if check_result == "banned":
+    if user_id in casting_in_progress:
+        await message.answer("Руны уже брошены — дождись ответа.")
         return
+    casting_in_progress.add(user_id)
 
-    if check_result == "no_coins":
-        await message.answer(
-            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-            reply_markup=get_no_coins_keyboard()
+    try:
+        check_result = await check_coins(user_id, spread_type)
+
+        if check_result == "banned":
+            return
+
+        if check_result == "no_coins":
+            await message.answer(
+                "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+                reply_markup=get_no_coins_keyboard()
+            )
+            return
+
+        user_states[user_id] = {"situation": situation, "spread_type": spread_type}
+
+        await _perform_casting(
+            user_id=user_id,
+            spread_type=spread_type,
+            situation=situation,
+            first_name=message.from_user.first_name or "странник",
+            chat_id=message.chat.id,
+            check_result=check_result,
         )
-        return
-
-    user_states[user_id] = {"situation": situation, "spread_type": spread_type}
-
-    await _perform_casting(
-        user_id=user_id,
-        spread_type=spread_type,
-        situation=situation,
-        first_name=message.from_user.first_name or "странник",
-        chat_id=message.chat.id,
-        check_result=check_result,
-    )
-
+    finally:
+        casting_in_progress.discard(user_id)
 # ── Оплата ────────────────────────────────────────────────────────────────────
 
 @dp.pre_checkout_query()
@@ -484,31 +497,39 @@ async def handle_spread(callback: CallbackQuery):
         await callback.answer()
         return
 
-    check_result = await check_coins(user_id, spread_type)
-
-    if check_result == "banned":
-        await callback.answer("Доступ ограничен.", show_alert=True)
+    if user_id in casting_in_progress:
+        await callback.answer("Руны уже брошены — дождись ответа.", show_alert=True)
         return
+    casting_in_progress.add(user_id)
 
-    if check_result == "no_coins":
+    try:
+        check_result = await check_coins(user_id, spread_type)
+
+        if check_result == "banned":
+            await callback.answer("Доступ ограничен.", show_alert=True)
+            return
+
+        if check_result == "no_coins":
+            await callback.answer()
+            await callback.message.answer(  # type: ignore
+                "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
+                reply_markup=get_no_coins_keyboard()
+            )
+            return
+
+        user_states[user_id]["spread_type"] = spread_type
+
         await callback.answer()
-        await callback.message.answer(  # type: ignore
-            "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-            reply_markup=get_no_coins_keyboard()
+        await _perform_casting(
+            user_id=user_id,
+            spread_type=spread_type,
+            situation=state["situation"],
+            first_name=callback.from_user.first_name or "странник",
+            chat_id=callback.message.chat.id,
+            check_result=check_result,
         )
-        return
-
-    user_states[user_id]["spread_type"] = spread_type
-
-    await callback.answer()
-    await _perform_casting(
-        user_id=user_id,
-        spread_type=spread_type,
-        situation=state["situation"],
-        first_name=callback.from_user.first_name or "странник",
-        chat_id=callback.message.chat.id,
-        check_result=check_result,
-    )
+    finally:
+        casting_in_progress.discard(user_id)
 
 
 # ── Само гадание ──────────────────────────────────────────────────────────────
@@ -661,64 +682,71 @@ async def handle_cast(request: web.Request):
 
     await get_or_create_user(user_id, username=user_data.get("username"), first_name=first_name)
 
-    check_result = await check_coins(user_id, spread_type)
-    if check_result == "banned":
-        return web.json_response({"ok": False, "error": "banned"})
-    if check_result == "no_coins":
-        return web.json_response({"ok": False, "error": "no_coins"})
+    if user_id in casting_in_progress:
+        return web.json_response({"ok": False, "error": "already_in_progress"})
+    casting_in_progress.add(user_id)
 
-    runes = cast_runes(SPREADS[spread_type]["count"])
-    
     try:
-        prompt     = build_prompt(spread_type, situation, runes)
-        start_time = datetime.now()
-        response   = await asyncio.to_thread(
-            client.chat.completions.create,
-            model="gpt-4o-mini",
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
-                {"role": "user",   "content": prompt}
-            ],
-            temperature=0.9,
-            max_completion_tokens=600,
-        )
-        latency_ms     = int((datetime.now() - start_time).total_seconds() * 1000)
-        interpretation = response.choices[0].message.content.strip()
-        log_casting(
-            user_id=user_id,
-            spread_type=spread_type,
-            stars=0,
-            input_tokens=response.usage.prompt_tokens,
-            output_tokens=response.usage.completion_tokens,
-            latency_ms=latency_ms,
-            source="miniapp",
-            situation=situation,
-        )
-        
-    except Exception as e:
-        print(f"ОШИБКА модели: {e}")
-        return web.json_response({"ok": False, "error": "generation_failed"})
+        check_result = await check_coins(user_id, spread_type)
+        if check_result == "banned":
+            return web.json_response({"ok": False, "error": "banned"})
+        if check_result == "no_coins":
+            return web.json_response({"ok": False, "error": "no_coins"})
 
-    await spend_coins(user_id, spread_type, check_result)
+        runes = cast_runes(SPREADS[spread_type]["count"])
 
-    lines = interpretation.split('\n')
-    recap = lines[0].strip()
-    body = '\n'.join(lines[1:]).strip()
-    full_message = f"Расклад рун для {first_name} о {recap}\n\n{body}"
+        try:
+            prompt     = build_prompt(spread_type, situation, runes)
+            start_time = datetime.now()
+            response   = await asyncio.to_thread(
+                client.chat.completions.create,
+                model="gpt-4o-mini",
+                messages=[
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user",   "content": prompt}
+                ],
+                temperature=0.9,
+                max_completion_tokens=600,
+            )
+            latency_ms     = int((datetime.now() - start_time).total_seconds() * 1000)
+            interpretation = response.choices[0].message.content.strip()
+            log_casting(
+                user_id=user_id,
+                spread_type=spread_type,
+                stars=0,
+                input_tokens=response.usage.prompt_tokens,
+                output_tokens=response.usage.completion_tokens,
+                latency_ms=latency_ms,
+                source="miniapp",
+                situation=situation,
+            )
 
-    return web.json_response({
-        "ok": True,
-        "spread_type": spread_type,
-        "text": full_message,
-        "runes": [
-            {
-                "name_ru":     r["name_ru"],
-                "reversed":    r["is_reversed"],
-                "file":        r["image"],
-            }
-            for r in runes
-        ]
-    })
+        except Exception as e:
+            print(f"ОШИБКА модели: {e}")
+            return web.json_response({"ok": False, "error": "generation_failed"})
+
+        await spend_coins(user_id, spread_type, check_result)
+
+        lines = interpretation.split('\n')
+        recap = lines[0].strip()
+        body = '\n'.join(lines[1:]).strip()
+        full_message = f"Расклад рун для {first_name} о {recap}\n\n{body}"
+
+        return web.json_response({
+            "ok": True,
+            "spread_type": spread_type,
+            "text": full_message,
+            "runes": [
+                {
+                    "name_ru":     r["name_ru"],
+                    "reversed":    r["is_reversed"],
+                    "file":        r["image"],
+                }
+                for r in runes
+            ]
+        })
+    finally:
+        casting_in_progress.discard(user_id)
    
     # ── Ежедневное напоминание ────────────────────────────────────────────────────
 
@@ -741,6 +769,11 @@ async def _send_reminder(user_id: int):
         await mark_reminder_sent(user_id)
     except TelegramForbiddenError:
         await mark_bot_blocked(user_id)
+    except TelegramBadRequest as e:
+        if "chat not found" in str(e).lower():
+            await mark_bot_blocked(user_id)
+        else:
+            print(f"Ошибка отправки напоминания user_id={user_id}: {e}")
     except TelegramRetryAfter as e:
         await asyncio.sleep(e.retry_after)
         try:
