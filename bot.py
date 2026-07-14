@@ -30,8 +30,10 @@ from database import (
     log_visit, update_user_geo,
     track_referral_click, track_referral_conversion,
     get_users_for_reminder, mark_reminder_sent, mark_bot_blocked,
+    get_user_language, set_user_language,
     SPREAD_COST,
 )
+from i18n import load_i18n
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -824,6 +826,7 @@ async def set_webhook_delayed():
 async def on_startup(app: web.Application):
     await init_users_db()
     await init_castings_table()
+    load_i18n()
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(set_webhook_delayed())
     asyncio.create_task(daily_reminder_scheduler())

@@ -76,7 +76,8 @@ async def init_db():
             ALTER TABLE users
                 ADD COLUMN IF NOT EXISTS language_code TEXT,
                 ADD COLUMN IF NOT EXISTS country_code  TEXT,
-                ADD COLUMN IF NOT EXISTS city          TEXT
+                ADD COLUMN IF NOT EXISTS city          TEXT,
+                ADD COLUMN IF NOT EXISTS interface_lang TEXT
         """)
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_user_id ON user_visits (user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_created_at ON user_visits (created_at)")
@@ -407,3 +408,35 @@ async def mark_bot_blocked(user_id: int):
         await conn.execute("""
             UPDATE users SET bot_blocked = TRUE WHERE user_id = $1
         """, user_id)
+
+
+SUPPORTED_LANGUAGES = ("ru", "en", "pt")
+
+
+async def get_user_language(user_id: int) -> str:
+    """
+    Вернуть выбранный пользователем язык интерфейса.
+    Фолбэк на 'ru', если язык ещё не выбран (NULL) или не входит в поддерживаемые.
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow(
+            "SELECT interface_lang FROM users WHERE user_id = $1", user_id
+        )
+        lang = row["interface_lang"] if row else None
+        if lang not in SUPPORTED_LANGUAGES:
+            return "ru"
+        return lang
+
+
+async def set_user_language(user_id: int, lang: str):
+    """
+    Сохранить выбранный пользователем язык интерфейса.
+    """
+    if lang not in SUPPORTED_LANGUAGES:
+        return
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            UPDATE users SET interface_lang = $1
+            WHERE user_id = $2
+        """, lang, user_id)
+        
