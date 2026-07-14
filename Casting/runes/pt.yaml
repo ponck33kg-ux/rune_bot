@@ -1,0 +1,145 @@
+runes:
+  fehu:
+    symbol: "ᚠ"
+    image: "Fehu.png"
+    name: "Fehu"
+    tags: ["riqueza", "abundância", "novo começo"]
+    tags_reversed: ["perda", "ganância", "estagnação"]
+  uruz:
+    symbol: "ᚢ"
+    image: "Uruz.png"
+    name: "Uruz"
+    tags: ["força", "saúde", "mudança"]
+    tags_reversed: ["fraqueza", "oportunidade perdida", "doença"]
+  thurisaz:
+    symbol: "ᚦ"
+    image: "Thurisaz.png"
+    name: "Thurisaz"
+    tags: ["proteção", "provação", "golpe do destino"]
+    tags_reversed: ["vulnerabilidade", "perigo", "cegueira"]
+  ansuz:
+    symbol: "ᚨ"
+    image: "Ansuz.png"
+    name: "Ansuz"
+    tags: ["sabedoria", "mensagem", "inspiração"]
+    tags_reversed: ["engano", "silêncio", "incompreensão"]
+  raidho:
+    symbol: "ᚱ"
+    image: "Raidho.png"
+    name: "Raidho"
+    tags: ["caminho", "movimento", "decisão"]
+    tags_reversed: ["estagnação", "atraso", "caminho errado"]
+  kaunan:
+    symbol: "ᚲ"
+    image: "Kaunan.png"
+    name: "Kaunan"
+    tags: ["conhecimento", "luz", "criatividade"]
+    tags_reversed: ["escuridão", "ignorância", "perda"]
+  gebo:
+    symbol: "ᚷ"
+    image: "Gebo.png"
+    name: "Gebo"
+    tags: ["dádiva", "parceria", "equilíbrio"]
+    tags_reversed: ["dívida", "dependência", "desequilíbrio"]
+  wunjo:
+    symbol: "ᚹ"
+    image: "Wunjo.png"
+    name: "Wunjo"
+    tags: ["alegria", "harmonia", "sucesso"]
+    tags_reversed: ["tristeza", "discórdia", "ilusão"]
+  hagalaz:
+    symbol: "ᚺ"
+    image: "Hagalaz.png"
+    name: "Hagalaz"
+    tags: ["mudança", "destruição", "purificação"]
+    tags_reversed: ["caos", "estagnação", "inevitabilidade"]
+  nauthiz:
+    symbol: "ᚾ"
+    image: "Nauthiz.png"
+    name: "Nauthiz"
+    tags: ["necessidade", "paciência", "lição"]
+    tags_reversed: ["desespero", "coerção", "resistência"]
+  isa:
+    symbol: "ᛁ"
+    image: "Isa.png"
+    name: "Isa"
+    tags: ["pausa", "quietude", "concentração"]
+    tags_reversed: ["congelamento", "isolamento", "ego"]
+  jera:
+    symbol: "ᛃ"
+    image: "Jera.png"
+    name: "Jera"
+    tags: ["ciclo", "colheita", "recompensa"]
+    tags_reversed: ["atraso", "repetição de erros", "impaciência"]
+  eihwaz:
+    symbol: "ᛇ"
+    image: "Eihwaz.png"
+    name: "Eihwaz"
+    tags: ["resistência", "transformação", "conexão entre os mundos"]
+    tags_reversed: ["fraqueza", "confusão", "medo da morte"]
+  perthro:
+    symbol: "ᛈ"
+    image: "Perthro.png"
+    name: "Perthro"
+    tags: ["mistério", "destino", "o oculto"]
+    tags_reversed: ["segredos", "dependência", "incerteza"]
+  algiz:
+    symbol: "ᛉ"
+    image: "Algiz.png"
+    name: "Algiz"
+    tags: ["proteção", "intuição", "conexão com o divino"]
+    tags_reversed: ["vulnerabilidade", "ignorar os sinais", "perigo"]
+  sowilo:
+    symbol: "ᛊ"
+    image: "Sowilo.png"
+    name: "Sowilo"
+    tags: ["vitória", "energia", "clareza"]
+    tags_reversed: ["autoengano", "esgotamento", "cegueira"]
+  tiwaz:
+    symbol: "ᛏ"
+    image: "Tiwaz.png"
+    name: "Tiwaz"
+    tags: ["justiça", "força de vontade", "sacrifício"]
+    tags_reversed: ["injustiça", "derrota", "fraqueza de vontade"]
+  berkana:
+    symbol: "ᛒ"
+    image: "Berkana.png"
+    name: "Berkana"
+    tags: ["crescimento", "cuidado", "vida nova"]
+    tags_reversed: ["ansiedade", "preocupação", "crescimento estagnado"]
+  ehwaz:
+    symbol: "ᛖ"
+    image: "Ehwaz.png"
+    name: "Ehwaz"
+    tags: ["movimento", "confiança", "parceria"]
+    tags_reversed: ["traição", "rompimento", "desconfiança"]
+  mannaz:
+    symbol: "ᛗ"
+    image: "Mannaz.png"
+    name: "Mannaz"
+    tags: ["o eu", "razão", "cooperação"]
+    tags_reversed: ["egoísmo", "isolamento", "autoengano"]
+  laguz:
+    symbol: "ᛚ"
+    image: "Laguz.png"
+    name: "Laguz"
+    tags: ["intuição", "fluxo", "o subconsciente"]
+    tags_reversed: ["medo", "resistência ao fluxo", "confusão"]
+  ingwaz:
+    symbol: "ᛜ"
+    image: "Ingwaz.png"
+    name: "Ingwaz"
+    tags: ["potencial", "conclusão", "força interior"]
+    tags_reversed: ["incompletude", "dispersão", "bloqueio"]
+  othalan:
+    symbol: "ᛞ"
+    image: "Othalan.png"
+    name: "Othalan"
+    tags: ["herança", "raízes", "lar"]
+    tags_reversed: ["alienação", "perda de raízes", "preso ao passado"]
+  dagaz:
+    symbol: "ᛟ"
+    image: "Dagaz.png"
+    name: "Dagaz"
+    tags: ["amanhecer", "avanço", "transformação"]
+    tags_reversed: ["cegueira", "fim de um ciclo", "amanhecer adiado"]

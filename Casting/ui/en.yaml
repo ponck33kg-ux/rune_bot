@@ -1,0 +1,73 @@
+# ── Spreads (used in SPREADS) ─────────────────────────────────────────────
+spread_single_name: "⚡ Spark of the Futhark"
+spread_single_desc: "1 rune — the voice of fate"
+spread_triple_name: "🌿 Shadow of Yggdrasil"
+spread_triple_desc: "3 runes — past, present, future"
+spread_five_name: "🌌 Staff of Odin"
+spread_five_desc: "5 runes — a deep reading"
+
+# ── Coins — word forms for declension (code picks form based on number) ───
+coin_form_one: "coin"    # 1
+coin_form_many: "coins"  # 0, 2+
+
+# ── Coin packages (label assembled in code from these pieces) ─────────────
+pack_10_desc:  "5 coins — 10 ⭐"
+pack_50_desc:  "25 coins — 50 ⭐"
+pack_180_desc: "100 coins — 180 ⭐"
+pack_800_desc: "500 coins — 800 ⭐ 🔥"
+
+# ── Reply keyboard (main menu) ─────────────────────────────────────────────
+btn_casting: "🔮 Divination"
+btn_topup: "💰 Top up balance"
+
+# ── Inline buttons ──────────────────────────────────────────────────────────
+btn_subscribe_channel: "📢 Subscribe to the channel"
+btn_subscribed_confirm: "✅ I subscribed!"
+btn_next_question: "➡️ Ask your next question"
+
+# ── /start ──────────────────────────────────────────────────────────────────
+subscribe_prompt: "🎁 Subscribe to the channel and get 10 free coins!"
+free_available: "✅ free reading available"
+free_used: "❌ free reading already used"
+start_welcome: "Welcome. The runes hold ancient wisdom.\n\n💰 Coins: {coins}\n{free_text}\n\nDescribe your situation and tap 🔮 Divination — the oracle will hear you."
+menu_button_oracle: "🌌 Oracle"
+
+# ── /support ─────────────────────────────────────────────────────────────────
+support_text: "For questions about how the bot works, partnership proposals, and advertising, contact: @RuneSupport_Bot"
+
+# ── Balance / top up ─────────────────────────────────────────────────────────
+topup_prompt: "💰 Your balance: {coins} coins\n\nBuy coins — let the runes open your path.\nChoose a package:"
+pack_not_found: "Package not found."
+invoice_title: "Coins of Odin"
+
+# ── New casting ───────────────────────────────────────────────────────────────
+new_casting_prompt: "Describe your situation or ask a question.\nThe runes will hear you."
+
+# ── Channel subscription ───────────────────────────────────────────────────────
+not_subscribed_yet: "You haven't subscribed to the channel yet 🌑"
+subscribe_bonus_given: "Thanks for subscribing! 10 coins credited ✨"
+subscribe_bonus_already_given: "The bonus has already been claimed."
+
+# ── Web App data ────────────────────────────────────────────────────────────────
+no_situation_received: "No question received. Please try again."
+casting_already_in_progress: "The runes have already been cast — wait for the answer."
+no_coins_for_spread: "Not enough coins for this spread.\nTop up your balance and continue your path."
+
+# ── Payment ────────────────────────────────────────────────────────────────────
+payment_success: "✨ {coins} coins credited to your account.\nThe runes await your question."
+
+# ── Chat flow ──────────────────────────────────────────────────────────────────
+describe_situation_first: "First, describe your situation or ask a question."
+runes_ready_choose_spread: "The runes are ready. Choose a spread:"
+describe_situation_only: "First, describe your situation."
+access_restricted: "Access restricted."
+
+# ── Casting ────────────────────────────────────────────────────────────────────
+runes_failed: "The runes could not open. Please try again."
+casting_result_header: "Rune spread for {first_name} on {recap}"
+
+# ── Daily reminder ─────────────────────────────────────────────────────────────
+daily_reminder: "🎁A free reading is waiting! Discover the answer to your question 💫"
+
+# ── Fallback name if Telegram didn't provide first_name ────────────────────────
+default_stranger_name: "wanderer"

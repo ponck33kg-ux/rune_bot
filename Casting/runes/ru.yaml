@@ -1,0 +1,145 @@
+runes:
+  fehu:
+    symbol: "ᚠ"
+    image: "Fehu.png"
+    name: "Феху"
+    tags: ["богатство", "изобилие", "новое начало"]
+    tags_reversed: ["потеря", "жадность", "застой"]
+  uruz:
+    symbol: "ᚢ"
+    image: "Uruz.png"
+    name: "Уруз"
+    tags: ["сила", "здоровье", "перемены"]
+    tags_reversed: ["слабость", "упущение", "болезнь"]
+  thurisaz:
+    symbol: "ᚦ"
+    image: "Thurisaz.png"
+    name: "Турисаз"
+    tags: ["защита", "испытание", "удар судьбы"]
+    tags_reversed: ["уязвимость", "опасность", "слепота"]
+  ansuz:
+    symbol: "ᚨ"
+    image: "Ansuz.png"
+    name: "Ансуз"
+    tags: ["мудрость", "послание", "вдохновение"]
+    tags_reversed: ["обман", "молчание", "непонимание"]
+  raidho:
+    symbol: "ᚱ"
+    image: "Raidho.png"
+    name: "Райдо"
+    tags: ["путь", "движение", "решение"]
+    tags_reversed: ["застревание", "задержка", "неверный путь"]
+  kaunan:
+    symbol: "ᚲ"
+    image: "Kaunan.png"
+    name: "Кано"
+    tags: ["знание", "свет", "творчество"]
+    tags_reversed: ["тьма", "невежество", "потеря"]
+  gebo:
+    symbol: "ᚷ"
+    image: "Gebo.png"
+    name: "Гебо"
+    tags: ["дар", "партнёрство", "баланс"]
+    tags_reversed: ["долг", "зависимость", "дисбаланс"]
+  wunjo:
+    symbol: "ᚹ"
+    image: "Wunjo.png"
+    name: "Вуньо"
+    tags: ["радость", "гармония", "успех"]
+    tags_reversed: ["печаль", "разлад", "иллюзия"]
+  hagalaz:
+    symbol: "ᚺ"
+    image: "Hagalaz.png"
+    name: "Хагалаз"
+    tags: ["перемены", "разрушение", "очищение"]
+    tags_reversed: ["хаос", "застревание", "неизбежность"]
+  nauthiz:
+    symbol: "ᚾ"
+    image: "Nauthiz.png"
+    name: "Наутиз"
+    tags: ["нужда", "терпение", "урок"]
+    tags_reversed: ["отчаяние", "принуждение", "сопротивление"]
+  isa:
+    symbol: "ᛁ"
+    image: "Isa.png"
+    name: "Иса"
+    tags: ["пауза", "покой", "концентрация"]
+    tags_reversed: ["заморозка", "изоляция", "ego"]
+  jera:
+    symbol: "ᛃ"
+    image: "Jera.png"
+    name: "Йера"
+    tags: ["цикл", "урожай", "награда"]
+    tags_reversed: ["задержка", "повторение ошибок", "нетерпение"]
+  eihwaz:
+    symbol: "ᛇ"
+    image: "Eihwaz.png"
+    name: "Эйваз"
+    tags: ["стойкость", "трансформация", "связь миров"]
+    tags_reversed: ["слабость", "путаница", "страх смерти"]
+  perthro:
+    symbol: "ᛈ"
+    image: "Perthro.png"
+    name: "Перт"
+    tags: ["тайна", "судьба", "скрытое"]
+    tags_reversed: ["секреты", "зависимость", "неизвестность"]
+  algiz:
+    symbol: "ᛉ"
+    image: "Algiz.png"
+    name: "Альгиз"
+    tags: ["защита", "интуиция", "связь с высшим"]
+    tags_reversed: ["уязвимость", "игнорирование знаков", "опасность"]
+  sowilo:
+    symbol: "ᛊ"
+    image: "Sowilo.png"
+    name: "Соулу"
+    tags: ["победа", "энергия", "ясность"]
+    tags_reversed: ["самообман", "выгорание", "слепота"]
+  tiwaz:
+    symbol: "ᛏ"
+    image: "Tiwaz.png"
+    name: "Тейваз"
+    tags: ["справедливость", "воля", "жертва"]
+    tags_reversed: ["несправедливость", "поражение", "слабость воли"]
+  berkana:
+    symbol: "ᛒ"
+    image: "Berkana.png"
+    name: "Беркана"
+    tags: ["рост", "забота", "новая жизнь"]
+    tags_reversed: ["тревога", "беспокойство", "застой роста"]
+  ehwaz:
+    symbol: "ᛖ"
+    image: "Ehwaz.png"
+    name: "Эваз"
+    tags: ["движение", "доверие", "партнёрство"]
+    tags_reversed: ["предательство", "разрыв", "недоверие"]
+  mannaz:
+    symbol: "ᛗ"
+    image: "Mannaz.png"
+    name: "Манназ"
+    tags: ["человек", "разум", "сотрудничество"]
+    tags_reversed: ["эгоизм", "изоляция", "самообман"]
+  laguz:
+    symbol: "ᛚ"
+    image: "Laguz.png"
+    name: "Лагуз"
+    tags: ["интуиция", "поток", "подсознание"]
+    tags_reversed: ["страх", "сопротивление потоку", "путаница"]
+  ingwaz:
+    symbol: "ᛜ"
+    image: "Ingwaz.png"
+    name: "Ингуз"
+    tags: ["потенциал", "завершение", "внутренняя сила"]
+    tags_reversed: ["незавершённость", "рассеянность", "блок"]
+  othalan:
+    symbol: "ᛞ"
+    image: "Othalan.png"
+    name: "Одал"
+    tags: ["наследие", "корни", "дом"]
+    tags_reversed: ["отчуждение", "потеря корней", "застревание в прошлом"]
+  dagaz:
+    symbol: "ᛟ"
+    image: "Dagaz.png"
+    name: "Дагаз"
+    tags: ["рассвет", "прорыв", "трансформация"]
+    tags_reversed: ["слепота", "конец цикла", "задержка рассвета"]

@@ -1,0 +1,73 @@
+# ── Tiragens (usadas em SPREADS) ────────────────────────────────────────────
+spread_single_name: "⚡ Faísca do Futhark"
+spread_single_desc: "1 runa — a voz do destino"
+spread_triple_name: "🌿 Sombra de Yggdrasil"
+spread_triple_desc: "3 runas — passado, presente, futuro"
+spread_five_name: "🌌 Cajado de Odin"
+spread_five_desc: "5 runas — uma tiragem profunda"
+
+# ── Moedas — formas da palavra para declinação (o código escolhe a forma pelo número) ──
+coin_form_one: "moeda"    # 1
+coin_form_many: "moedas"  # 0, 2+
+
+# ── Pacotes de moedas (o rótulo é montado no código a partir destas partes) ──
+pack_10_desc:  "5 moedas — 10 ⭐"
+pack_50_desc:  "25 moedas — 50 ⭐"
+pack_180_desc: "100 moedas — 180 ⭐"
+pack_800_desc: "500 moedas — 800 ⭐ 🔥"
+
+# ── Teclado de resposta (menu principal) ─────────────────────────────────────
+btn_casting: "🔮 Adivinhação"
+btn_topup: "💰 Adicionar saldo"
+
+# ── Botões inline ──────────────────────────────────────────────────────────────
+btn_subscribe_channel: "📢 Inscrever-se no canal"
+btn_subscribed_confirm: "✅ Já me inscrevi!"
+btn_next_question: "➡️ Faça sua próxima pergunta"
+
+# ── /start ──────────────────────────────────────────────────────────────────────
+subscribe_prompt: "🎁 Inscreva-se no canal e ganhe 10 moedas grátis!"
+free_available: "✅ leitura gratuita disponível"
+free_used: "❌ leitura gratuita já utilizada"
+start_welcome: "Bem-vindo(a). As runas guardam uma sabedoria antiga.\n\n💰 Moedas: {coins}\n{free_text}\n\nDescreva sua situação e toque em 🔮 Adivinhação — o oráculo vai ouvir você."
+menu_button_oracle: "🌌 Oráculo"
+
+# ── /support ─────────────────────────────────────────────────────────────────────
+support_text: "Para dúvidas sobre o funcionamento do bot, propostas de parceria e publicidade, entre em contato: @RuneSupport_Bot"
+
+# ── Saldo / recarga ─────────────────────────────────────────────────────────────
+topup_prompt: "💰 Seu saldo: {coins} moedas\n\nCompre moedas — e deixe as runas abrirem seu caminho.\nEscolha um pacote:"
+pack_not_found: "Pacote não encontrado."
+invoice_title: "Moedas de Odin"
+
+# ── Nova adivinhação ───────────────────────────────────────────────────────────────
+new_casting_prompt: "Descreva sua situação ou faça uma pergunta.\nAs runas vão ouvir você."
+
+# ── Inscrição no canal ─────────────────────────────────────────────────────────────
+not_subscribed_yet: "Você ainda não se inscreveu no canal 🌑"
+subscribe_bonus_given: "Obrigado por se inscrever! 10 moedas creditadas ✨"
+subscribe_bonus_already_given: "O bônus já foi resgatado anteriormente."
+
+# ── Dados do Web App ───────────────────────────────────────────────────────────────
+no_situation_received: "Pergunta não recebida. Tente novamente."
+casting_already_in_progress: "As runas já foram lançadas — aguarde a resposta."
+no_coins_for_spread: "Moedas insuficientes para essa tiragem.\nAdicione saldo e continue seu caminho."
+
+# ── Pagamento ───────────────────────────────────────────────────────────────────────
+payment_success: "✨ {coins} moedas creditadas na sua conta.\nAs runas aguardam sua pergunta."
+
+# ── Fluxo do chat ───────────────────────────────────────────────────────────────────
+describe_situation_first: "Primeiro, descreva sua situação ou faça uma pergunta."
+runes_ready_choose_spread: "As runas estão prontas. Escolha uma tiragem:"
+describe_situation_only: "Primeiro, descreva sua situação."
+access_restricted: "Acesso restrito."
+
+# ── Adivinhação ─────────────────────────────────────────────────────────────────────
+runes_failed: "As runas não conseguiram se abrir. Tente novamente."
+casting_result_header: "Tiragem de runas para {first_name} sobre {recap}"
+
+# ── Lembrete diário ───────────────────────────────────────────────────────────────
+daily_reminder: "🎁Uma leitura gratuita está esperando! Descubra a resposta para sua pergunta 💫"
+
+# ── Nome padrão caso o Telegram não forneça first_name ──────────────────────────────
+default_stranger_name: "viajante"
