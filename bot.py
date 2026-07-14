@@ -30,10 +30,15 @@ from database import (
     log_visit, update_user_geo,
     track_referral_click, track_referral_conversion,
     get_users_for_reminder, mark_reminder_sent, mark_bot_blocked,
-    get_user_language, set_user_language,
+    get_user_language, set_user_language, has_chosen_language,
     SPREAD_COST,
 )
-from i18n import load_i18n
+from constants import SUPPORTED_LANGUAGES
+
+from i18n import (
+    load_i18n, t, format_coins,
+    get_prompt_data, get_system_prompt, get_runes_data, reversed_word,
+)
 
 if sys.platform == 'win32':
     asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
@@ -55,24 +60,9 @@ if not WEBHOOK_SECRET:
 # ── Гадания ───────────────────────────────────────────────────────────────────
 
 SPREADS = {
-    "single": {
-        "name":  "⚡ Искра Футарка",
-        "desc":  "1 руна — голос судьбы",
-        "count": 1,
-        "cost":  SPREAD_COST["single"],
-    },
-    "triple": {
-        "name":  "🌿 Тень Иггдрасиль",
-        "desc":  "3 руны — прошлое, настоящее, будущее",
-        "count": 3,
-        "cost":  SPREAD_COST["triple"],
-    },
-    "five": {
-        "name":  "🌌 Посох Одина",
-        "desc":  "5 рун — глубокий расклад",
-        "count": 5,
-        "cost":  SPREAD_COST["five"],
-    },
+    "single": {"count": 1, "cost": SPREAD_COST["single"]},
+    "triple": {"count": 3, "cost": SPREAD_COST["triple"]},
+    "five":   {"count": 5, "cost": SPREAD_COST["five"]},
 }
 
 # ── Пакеты монет ──────────────────────────────────────────────────────────────
@@ -143,63 +133,149 @@ def build_greeting(spread_type: str, name: str, runes: list[dict], interpretatio
     return template.format(**kwargs)
 
 
+def cast_runes_i18n(count: int, lang: str) -> list[dict]:
+    """
+    Версия cast_runes для чат-флоу — берёт руны из языковых файлов (Casting/runes/{lang}.yaml),
+    а не из старого глобального RUNES (тот используется только миниапкой).
+    """
+    runes_data = get_runes_data(lang)
+    keys   = random.sample(list(runes_data.keys()), count)
+    result = []
+    for key in keys:
+        rune        = runes_data[key]
+        is_reversed = random.choice([True, False])
+        result.append({
+            "key":         key,
+            "name":        rune["name"],
+            "symbol":      rune["symbol"],
+            "image":       rune["image"],
+            "tags":        rune["tags_reversed"] if is_reversed else rune["tags"],
+            "is_reversed": is_reversed,
+        })
+    return result
+
+
+def build_prompt_i18n(lang: str, spread_type: str, situation: str, runes: list[dict]) -> str:
+    """
+    Версия build_prompt для чат-флоу — берёт шаблон из Casting/prompts/{lang}.yaml.
+    """
+    template = get_prompt_data(lang)[spread_type]
+    kwargs   = {"situation": situation}
+    for i, rune in enumerate(runes, 1):
+        kwargs[f"rune{i}_name"]     = rune["name"]
+        kwargs[f"rune{i}_tags"]     = ", ".join(rune["tags"])
+        kwargs[f"rune{i}_reversed"] = reversed_word(lang, rune["is_reversed"])
+    return template.format(**kwargs)
+
+
 # ── Кнопки ────────────────────────────────────────────────────────────────────
 
-def get_main_keyboard() -> ReplyKeyboardMarkup:
+def get_main_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return ReplyKeyboardMarkup(
         keyboard=[
-            [KeyboardButton(text="🔮 Гадание")],
-            [KeyboardButton(text="💰 Пополнить баланс")],
+            [KeyboardButton(text=t(lang, "btn_casting"))],
+            [KeyboardButton(text=t(lang, "btn_topup"))],
         ],
         resize_keyboard=True,
         persistent=True,
     )
 
-def get_spread_keyboard(free_available: bool) -> InlineKeyboardMarkup:
+def get_spread_keyboard(free_available: bool, lang: str) -> InlineKeyboardMarkup:
+    triple_name  = t(lang, "spread_triple_name")
     triple_label = (
-        f"{SPREADS['triple']['name']} — бесплатно"
+        f"{triple_name} — {t(lang, 'label_free')}"
         if free_available
-        else f"{SPREADS['triple']['name']} — {SPREADS['triple']['cost']} монеты"
+        else f"{triple_name} — {format_coins(SPREADS['triple']['cost'], lang)}"
     )
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text=f"{SPREADS['single']['name']} — {SPREADS['single']['cost']} монета",
+            text=f"{t(lang, 'spread_single_name')} — {format_coins(SPREADS['single']['cost'], lang)}",
             callback_data="spread_single"
         )],
         [InlineKeyboardButton(text=triple_label, callback_data="spread_triple")],
         [InlineKeyboardButton(
-            text=f"{SPREADS['five']['name']} — {SPREADS['five']['cost']} монет",
+            text=f"{t(lang, 'spread_five_name')} — {format_coins(SPREADS['five']['cost'], lang)}",
             callback_data="spread_five"
         )],
     ])
-
-def get_channel_keyboard() -> InlineKeyboardMarkup:
+    
+def get_channel_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(
-            text="📢 Подписаться на канал",
+            text=t(lang, "btn_subscribe_channel"),
             url=f"https://t.me/{CHANNEL_USERNAME.lstrip('@')}"
         )],
-        [InlineKeyboardButton(text="✅ Я подписался!", callback_data="check_subscription")],
+        [InlineKeyboardButton(text=t(lang, "btn_subscribed_confirm"), callback_data="check_subscription")],
     ])
 
-def get_result_keyboard(spread_type: str) -> InlineKeyboardMarkup:
+def get_result_keyboard(spread_type: str, lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="➡️ Задай следующий вопрос", callback_data="new_casting")],
+        [InlineKeyboardButton(text=t(lang, "btn_next_question"), callback_data="new_casting")],
     ])
 
-def get_topup_keyboard() -> InlineKeyboardMarkup:
+def get_topup_keyboard(lang: str) -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="5 монет — 10 ⭐",       callback_data="buy_pack_10")],
-        [InlineKeyboardButton(text="25 монет — 50 ⭐",      callback_data="buy_pack_50")],
-        [InlineKeyboardButton(text="100 монет — 180 ⭐",    callback_data="buy_pack_180")],
-        [InlineKeyboardButton(text="500 монет — 800 ⭐ 🔥", callback_data="buy_pack_800")],
+        [InlineKeyboardButton(text=t(lang, "pack_10_desc"),  callback_data="buy_pack_10")],
+        [InlineKeyboardButton(text=t(lang, "pack_50_desc"),  callback_data="buy_pack_50")],
+        [InlineKeyboardButton(text=t(lang, "pack_180_desc"), callback_data="buy_pack_180")],
+        [InlineKeyboardButton(text=t(lang, "pack_800_desc"), callback_data="buy_pack_800")],
     ])
 
-def get_no_coins_keyboard() -> InlineKeyboardMarkup:
-    return get_topup_keyboard()
+def get_no_coins_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return get_topup_keyboard(lang)
+
+
+def get_language_keyboard() -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="setlang_ru")],
+        [InlineKeyboardButton(text="🇬🇧 English", callback_data="setlang_en")],
+        [InlineKeyboardButton(text="🇵🇹 Português", callback_data="setlang_pt")],
+    ])
 
 
 # ── Команды ───────────────────────────────────────────────────────────────────
+
+async def _do_start(chat_id: int, user_id: int, username: str | None, first_name: str | None, lang: str):
+    """
+    Основной флоу приветствия — общий для cmd_start (когда язык уже выбран)
+    и handle_language_selection (сразу после выбора языка).
+    Принимает явные параметры, а не Message/CallbackQuery, чтобы не путать
+    from_user бота (в callback.message) с from_user реального пользователя.
+    """
+    try:
+        member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
+        is_subscribed = member.status in ("member", "administrator", "creator")
+    except Exception:
+        is_subscribed = False
+
+    bonus_received = await has_channel_bonus(user_id)
+
+    if not (is_subscribed and bonus_received):
+        await bot.send_message(
+            chat_id,
+            t(lang, "subscribe_prompt"),
+            reply_markup=get_channel_keyboard(lang)
+        )
+
+    balance_data   = await get_user_balance(user_id)
+    free_available = balance_data["free_left"] > 0
+    coins          = balance_data["coins_balance"]
+    free_text      = t(lang, "free_available") if free_available else t(lang, "free_used")
+
+    await bot.send_message(
+        chat_id,
+        t(lang, "start_welcome", coins=coins, free_text=free_text),
+        reply_markup=get_main_keyboard(lang)
+    )
+
+    await bot.set_chat_menu_button(
+        chat_id=chat_id,
+        menu_button=MenuButtonWebApp(
+            text=t(lang, "menu_button_oracle"),
+            web_app=WebAppInfo(url=f"{MINIAPP_URL}/?free={1 if free_available else 0}")
+        )
+    )
+
 
 @dp.message(CommandStart())
 async def cmd_start(message: Message):
@@ -233,80 +309,107 @@ async def cmd_start(message: Message):
         await track_referral_click(ref_code)
         if is_new:
             await track_referral_conversion(ref_code)
-            
-    try:
-        member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
-        is_subscribed = member.status in ("member", "administrator", "creator")
-    except Exception:
-        is_subscribed = False
 
-    bonus_received = await has_channel_bonus(user_id)
-
-    if not (is_subscribed and bonus_received):
+    if not await has_chosen_language(user_id):
         await message.answer(
-            "🎁 Подпишись на канал и получи 10 монет бесплатно!",
-            reply_markup=get_channel_keyboard()
+            "Выбери язык / Choose language / Escolha o idioma:",
+            reply_markup=get_language_keyboard()
         )
+        return
 
-    balance_data   = await get_user_balance(user_id)
-    free_available = balance_data["free_left"] > 0
-    coins          = balance_data["coins_balance"]
-    free_text      = "✅ бесплатное гадание доступно" if free_available else "❌ бесплатное гадание использовано"
-
-    await message.answer(
-        f"Добро пожаловать. Руны хранят древнюю мудрость.\n\n"
-        f"💰 Монеты: {coins}\n"
-        f"{free_text}\n\n"
-        f"Опиши свою ситуацию и нажми 🔮 Гадание — оракул услышит тебя.",
-        reply_markup=get_main_keyboard()
+    lang = await get_user_language(user_id)
+    await _do_start(
+        chat_id=message.chat.id,
+        user_id=user_id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+        lang=lang,
     )
 
-    await bot.set_chat_menu_button(
-        chat_id=message.chat.id,
-        menu_button=MenuButtonWebApp(
-            text="🌌 Оракул",
-            web_app=WebAppInfo(url=f"{MINIAPP_URL}/?free={1 if free_available else 0}")
-        )
+
+@dp.callback_query(F.data.startswith("setlang_"))
+async def handle_language_selection(callback: CallbackQuery):
+    if not callback.from_user or not callback.message:
+        return
+    lang = (callback.data or "").replace("setlang_", "")
+    if lang not in SUPPORTED_LANGUAGES:
+        await callback.answer()
+        return
+
+    user_id = callback.from_user.id
+    await set_user_language(user_id, lang)
+    await callback.answer()
+
+    try:
+        await callback.message.delete()  # type: ignore
+    except TelegramBadRequest:
+        pass
+
+    await _do_start(
+        chat_id=callback.message.chat.id,
+        user_id=user_id,
+        username=callback.from_user.username,
+        first_name=callback.from_user.first_name,
+        lang=lang,
     )
 
 
 @dp.message(Command("support"))
 async def cmd_support(message: Message):
+    if not message.from_user:
+        return
+    lang = await get_user_language(message.from_user.id)
+    await message.answer(t(lang, "support_text"))
+
+
+@dp.message(Command("language"))
+async def cmd_language(message: Message):
+    if not message.from_user:
+        return
+    await get_or_create_user(
+        message.from_user.id,
+        username=message.from_user.username,
+        first_name=message.from_user.first_name,
+    )
     await message.answer(
-        "По вопросам связанным с работой бота, "
-        "предложениями сотрудничества и рекламой обращайтесь: @RuneSupport_Bot"
+        "Выбери язык / Choose language / Escolha o idioma:",
+        reply_markup=get_language_keyboard()
     )
 
-@dp.message(F.text == "💰 Пополнить баланс")
+@dp.message(F.text.in_(["💰 Пополнить баланс", "💰 Top up balance", "💰 Adicionar saldo"]))
 async def ask_topup(message: Message):
+    if not message.from_user:
+        return
+    lang = await get_user_language(message.from_user.id)
     balance_data = await get_user_balance(message.from_user.id)
     coins = balance_data["coins_balance"]
     await message.answer(
-        f"💰 Твой баланс: {coins} монет\n\n"
-        f"Купи монеты — и руны откроют путь.\n"
-        f"Выбери подходящий пакет:",
-        reply_markup=get_topup_keyboard()
+        t(lang, "topup_prompt", coins=coins),
+        reply_markup=get_topup_keyboard(lang)
     )
 
 @dp.callback_query(F.data.startswith("buy_pack_"))
 async def handle_buy_pack(callback: CallbackQuery):
     if not callback.from_user:
         return
+    lang = await get_user_language(callback.from_user.id)
     pack_key = (callback.data or "").replace("buy_", "")
     pack = PACKAGES.get(pack_key)
     if not pack:
-        await callback.answer("Пакет не найден.", show_alert=True)
+        await callback.answer(t(lang, "pack_not_found"), show_alert=True)
         return
+
+    pack_label = t(lang, f"{pack_key}_desc")
 
     await callback.answer()
     await bot.send_invoice(
         chat_id=callback.from_user.id,
-        title="Монеты Одина",
-        description=pack["label"],
+        title=t(lang, "invoice_title"),
+        description=pack_label,
         payload=f"{pack_key}:{callback.from_user.id}",
         provider_token="",
         currency="XTR",
-        prices=[LabeledPrice(label=pack["label"], amount=pack["stars"])],
+        prices=[LabeledPrice(label=pack_label, amount=pack["stars"])],
     )
     
 @dp.callback_query(F.data == "new_casting")
@@ -314,9 +417,8 @@ async def new_casting(callback: CallbackQuery):
     if not callback.from_user or not callback.message:
         return
     user_states.pop(callback.from_user.id, None)
-    await callback.message.answer(  # type: ignore
-        "Опиши свою ситуацию или задай вопрос.\nРуны услышат тебя."
-    )
+    lang = await get_user_language(callback.from_user.id)
+    await callback.message.answer(t(lang, "new_casting_prompt"))  # type: ignore
     await callback.answer()
 
 @dp.callback_query(F.data == "check_subscription")
@@ -324,6 +426,7 @@ async def check_subscription(callback: CallbackQuery):
     if not callback.from_user or not callback.message:
         return
     user_id = callback.from_user.id
+    lang = await get_user_language(user_id)
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
         is_subscribed = member.status in ("member", "administrator", "creator")
@@ -331,21 +434,18 @@ async def check_subscription(callback: CallbackQuery):
         is_subscribed = False
 
     if not is_subscribed:
-        await callback.answer("Ты ещё не подписался на канал 🌑", show_alert=True)
+        await callback.answer(t(lang, "not_subscribed_yet"), show_alert=True)
         return
 
     given = await give_channel_bonus(user_id)
     if given:
-        await callback.answer(
-            "Спасибо за подписку! 10 монет зачислено ✨",
-            show_alert=True
-        )
+        await callback.answer(t(lang, "subscribe_bonus_given"), show_alert=True)
         try:
             await callback.message.delete()  # type: ignore
         except TelegramBadRequest:
             pass
     else:
-        await callback.answer("Бонус уже был получен ранее.", show_alert=True)
+        await callback.answer(t(lang, "subscribe_bonus_already_given"), show_alert=True)
         try:
             await callback.message.delete()  # type: ignore
         except TelegramBadRequest:
@@ -366,11 +466,13 @@ async def handle_web_app_data(message: Message):
     spread_type = data.get("spread_type", "single")
     situation   = data.get("situation", "")[:500]
 
+    user_id = message.from_user.id
+    lang = await get_user_language(user_id)
+
     if not situation:
-        await message.answer("Вопрос не получен. Попробуй снова.")
+        await message.answer(t(lang, "no_situation_received"))
         return
 
-    user_id = message.from_user.id
     await get_or_create_user(
         user_id,
         username=message.from_user.username,
@@ -378,7 +480,7 @@ async def handle_web_app_data(message: Message):
     )
 
     if user_id in casting_in_progress:
-        await message.answer("Руны уже брошены — дождись ответа.")
+        await message.answer(t(lang, "casting_already_in_progress"))
         return
     casting_in_progress.add(user_id)
 
@@ -390,8 +492,8 @@ async def handle_web_app_data(message: Message):
 
         if check_result == "no_coins":
             await message.answer(
-                "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-                reply_markup=get_no_coins_keyboard()
+                t(lang, "no_coins_for_spread"),
+                reply_markup=get_no_coins_keyboard(lang)
             )
             return
 
@@ -401,12 +503,14 @@ async def handle_web_app_data(message: Message):
             user_id=user_id,
             spread_type=spread_type,
             situation=situation,
-            first_name=message.from_user.first_name or "странник",
+            first_name=message.from_user.first_name or t(lang, "default_stranger_name"),
             chat_id=message.chat.id,
             check_result=check_result,
+            lang=lang,
         )
     finally:
         casting_in_progress.discard(user_id)
+        
 # ── Оплата ────────────────────────────────────────────────────────────────────
 
 @dp.pre_checkout_query()
@@ -432,6 +536,8 @@ async def successful_payment(message: Message):
         print(f"successful_payment: pack_key={pack_key!r} не найден в PACKAGES")
         return
 
+    lang = await get_user_language(user_id)
+
     success = await add_coins(
         user_id=user_id,
         coins_amount=pack["coins"],
@@ -441,19 +547,18 @@ async def successful_payment(message: Message):
     print(f"successful_payment: add_coins вернул success={success}, user_id={user_id}, coins={pack['coins']}")
 
     if success:
-        await message.answer(
-            f"✨ На счёт зачислено {pack['coins']} монет.\n"
-            f"Руны ждут твоего вопроса."
-        )
+        await message.answer(t(lang, "payment_success", coins=pack["coins"]))
     else:
         print(f"successful_payment: add_coins вернул False — возможен дублирующийся telegram_charge_id")
         
 # ── Основной обработчик — сохраняем ситуацию ─────────────────────────────────
-@dp.message(F.text == "🔮 Гадание")
+
+@dp.message(F.text.in_(["🔮 Гадание", "🔮 Divination", "🔮 Adivinhação"]))
 async def handle_casting_button(message: Message):
-    await message.answer(
-        "Сначала опиши свою ситуацию или задай вопрос."
-    )
+    if not message.from_user:
+        return
+    lang = await get_user_language(message.from_user.id)
+    await message.answer(t(lang, "describe_situation_first"))
     
 @dp.message()
 async def handle_message(message: Message):
@@ -464,6 +569,7 @@ async def handle_message(message: Message):
         return
 
     user_id = message.from_user.id
+    lang = await get_user_language(user_id)
     await get_or_create_user(
         user_id,
         username=message.from_user.username,  # type: ignore
@@ -476,8 +582,8 @@ async def handle_message(message: Message):
     user_states[user_id] = {"situation": user_text[:500]}
 
     await message.answer(
-        "Руны готовы. Выбери расклад:",
-        reply_markup=get_spread_keyboard(free_available)
+        t(lang, "runes_ready_choose_spread"),
+        reply_markup=get_spread_keyboard(free_available, lang)
     )
 
 
@@ -490,17 +596,16 @@ async def handle_spread(callback: CallbackQuery):
         return
     spread_type = (callback.data or "").replace("spread_", "")
     user_id     = callback.from_user.id
+    lang        = await get_user_language(user_id)
 
     state = user_states.get(user_id)
     if not state:
-        await callback.message.answer(  # type: ignore
-            "Сначала опиши свою ситуацию."
-        )
+        await callback.message.answer(t(lang, "describe_situation_only"))  # type: ignore
         await callback.answer()
         return
 
     if user_id in casting_in_progress:
-        await callback.answer("Руны уже брошены — дождись ответа.", show_alert=True)
+        await callback.answer(t(lang, "casting_already_in_progress"), show_alert=True)
         return
     casting_in_progress.add(user_id)
 
@@ -508,14 +613,14 @@ async def handle_spread(callback: CallbackQuery):
         check_result = await check_coins(user_id, spread_type)
 
         if check_result == "banned":
-            await callback.answer("Доступ ограничен.", show_alert=True)
+            await callback.answer(t(lang, "access_restricted"), show_alert=True)
             return
 
         if check_result == "no_coins":
             await callback.answer()
             await callback.message.answer(  # type: ignore
-                "Недостаточно монет для этого расклада.\nПополни баланс и продолжи путь.",
-                reply_markup=get_no_coins_keyboard()
+                t(lang, "no_coins_for_spread"),
+                reply_markup=get_no_coins_keyboard(lang)
             )
             return
 
@@ -526,9 +631,10 @@ async def handle_spread(callback: CallbackQuery):
             user_id=user_id,
             spread_type=spread_type,
             situation=state["situation"],
-            first_name=callback.from_user.first_name or "странник",
+            first_name=callback.from_user.first_name or t(lang, "default_stranger_name"),
             chat_id=callback.message.chat.id,
             check_result=check_result,
+            lang=lang,
         )
     finally:
         casting_in_progress.discard(user_id)
@@ -538,20 +644,21 @@ async def handle_spread(callback: CallbackQuery):
 
 async def _perform_casting(
     user_id: int, spread_type: str, situation: str,
-    first_name: str, chat_id: int, check_result: str,
+    first_name: str, chat_id: int, check_result: str, lang: str,
 ):
-    runes = cast_runes(SPREADS[spread_type]["count"])
+    runes = cast_runes_i18n(SPREADS[spread_type]["count"], lang)
 
     try:
         await bot.send_chat_action(chat_id, "typing")
-        prompt = build_prompt(spread_type, situation, runes)
+        prompt        = build_prompt_i18n(lang, spread_type, situation, runes)
+        system_prompt = get_system_prompt(lang)
 
         start_time = datetime.now()
         response   = await asyncio.to_thread(
             client.chat.completions.create,
             model="gpt-4o-mini",
             messages=[
-                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": prompt}
             ],
             temperature=0.9,
@@ -572,7 +679,7 @@ async def _perform_casting(
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
-        await bot.send_message(chat_id, "Руны не смогли открыться. Попробуй снова.")
+        await bot.send_message(chat_id, t(lang, "runes_failed"))
         return
 
     await spend_coins(user_id, spread_type, check_result)
@@ -580,14 +687,14 @@ async def _perform_casting(
     lines = interpretation.split('\n')
     recap = lines[0].strip()
     body = '\n'.join(lines[1:]).strip()
-    full_message = f"Расклад рун для {first_name} о {recap}\n\n{body}"
+    full_message = t(lang, "casting_result_header", first_name=first_name, recap=recap) + f"\n\n{body}"
 
     rune_list = " · ".join([
-        f"{r['symbol']} {r['name_ru']}{'  🔄' if r['is_reversed'] else ''}"
+        f"{r['symbol']} {r['name']}{'  🔄' if r['is_reversed'] else ''}"
         for r in runes
     ])
     await bot.send_message(chat_id, rune_list)
-    await bot.send_message(chat_id, full_message, reply_markup=get_result_keyboard(spread_type))
+    await bot.send_message(chat_id, full_message, reply_markup=get_result_keyboard(spread_type, lang))
 
 
 # ── HTTP эндпоинты ────────────────────────────────────────────────────────────
@@ -754,8 +861,6 @@ async def handle_cast(request: web.Request):
 
 REMINDER_MSK = timezone(timedelta(hours=3))
 DAILY_REMINDER_HOUR_MSK = 11
-DAILY_REMINDER_TEXT = "🎁Подарочное гадание начислено! Узнай ответ на свой вопрос 💫"  # 
-
 
 def _next_reminder_time_msk() -> datetime:
     now_msk = datetime.now(REMINDER_MSK)
@@ -765,9 +870,10 @@ def _next_reminder_time_msk() -> datetime:
     return target
 
 
-async def _send_reminder(user_id: int):
+async def _send_reminder(user_id: int, lang: str):
+    reminder_text = t(lang, "daily_reminder")
     try:
-        await bot.send_message(user_id, DAILY_REMINDER_TEXT)
+        await bot.send_message(user_id, reminder_text)
         await mark_reminder_sent(user_id)
     except TelegramForbiddenError:
         await mark_bot_blocked(user_id)
@@ -779,7 +885,7 @@ async def _send_reminder(user_id: int):
     except TelegramRetryAfter as e:
         await asyncio.sleep(e.retry_after)
         try:
-            await bot.send_message(user_id, DAILY_REMINDER_TEXT)
+            await bot.send_message(user_id, reminder_text)
             await mark_reminder_sent(user_id)
         except Exception as e2:
             print(f"Ошибка повторной отправки напоминания user_id={user_id}: {e2}")
@@ -788,12 +894,12 @@ async def _send_reminder(user_id: int):
 
 
 async def send_daily_reminders():
-    user_ids = await get_users_for_reminder()
-    if not user_ids:
+    users = await get_users_for_reminder()
+    if not users:
         return
-    print(f"Рассылка напоминаний: {len(user_ids)} пользователей")
-    for user_id in user_ids:
-        await _send_reminder(user_id)
+    print(f"Рассылка напоминаний: {len(users)} пользователей")
+    for user_id, lang in users:
+        await _send_reminder(user_id, lang)
         await asyncio.sleep(0.05)
     print("Рассылка напоминаний завершена")
 

@@ -72,3 +72,4 @@ daily_reminder: "🎁Подарочное гадание начислено! У�
 
 # ── Fallback-имя, если Telegram не отдал first_name ──────────────────────
 default_stranger_name: "странник"
+label_free: "бесплатно"

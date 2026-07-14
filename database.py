@@ -1,6 +1,7 @@
 import os
 import asyncpg
 from datetime import datetime, timezone, timedelta
+from constants import SUPPORTED_LANGUAGES
 
 MSK = timezone(timedelta(hours=3))
 
@@ -369,15 +370,17 @@ async def track_referral_conversion(code: str):
             VALUES ($1, 'conversion')
         """, code)
         
-async def get_users_for_reminder() -> list[int]:
+async def get_users_for_reminder() -> list[tuple[int, str]]:
     """
     Пользователи, у которых бесплатное гадание фактически доступно
     на момент рассылки (11:00 МСК), не забанены, не заблокировали бота
     и ещё не получали напоминание сегодня (по МСК-дате).
+    Возвращает пары (user_id, interface_lang), чтобы разослать каждому
+    на его языке.
     """
     async with pool.acquire() as conn:  # type: ignore
         rows = await conn.fetch("""
-            SELECT user_id FROM users
+            SELECT user_id, interface_lang FROM users
             WHERE is_banned = FALSE
               AND bot_blocked = FALSE
               AND (
@@ -391,7 +394,10 @@ async def get_users_for_reminder() -> list[int]:
                       AND daily_reminders.sent_date = (NOW() + interval '3 hours')::date
               )
         """)
-        return [row["user_id"] for row in rows]
+        return [
+            (row["user_id"], row["interface_lang"] if row["interface_lang"] in SUPPORTED_LANGUAGES else "ru")
+            for row in rows
+        ]
 
 
 async def mark_reminder_sent(user_id: int):
@@ -408,9 +414,6 @@ async def mark_bot_blocked(user_id: int):
         await conn.execute("""
             UPDATE users SET bot_blocked = TRUE WHERE user_id = $1
         """, user_id)
-
-
-SUPPORTED_LANGUAGES = ("ru", "en", "pt")
 
 
 async def get_user_language(user_id: int) -> str:
@@ -439,4 +442,17 @@ async def set_user_language(user_id: int, lang: str):
             UPDATE users SET interface_lang = $1
             WHERE user_id = $2
         """, lang, user_id)
+
+
+async def has_chosen_language(user_id: int) -> bool:
+    """
+    Проверить, выбрал ли пользователь язык интерфейса явно (нажал кнопку).
+    В отличие от get_user_language, не возвращает фолбэк — нужен именно
+    факт "выбор ещё не сделан", чтобы решить, показывать ли клавиатуру выбора.
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow(
+            "SELECT interface_lang FROM users WHERE user_id = $1", user_id
+        )
+        return bool(row and row["interface_lang"] in SUPPORTED_LANGUAGES)
         

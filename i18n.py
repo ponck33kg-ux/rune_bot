@@ -1,6 +1,5 @@
 import yaml
-
-SUPPORTED_LANGUAGES = ("ru", "en", "pt")
+from constants import SUPPORTED_LANGUAGES
 
 _UI: dict[str, dict] = {}
 _PROMPTS: dict[str, dict] = {}
@@ -80,3 +79,17 @@ def format_coins(n: int, lang: str) -> str:
 
     word = t(lang, form_key)
     return f"{n} {word}"
+
+
+_REVERSED_YES = {"ru": "да", "en": "yes", "pt": "sim"}
+_REVERSED_NO  = {"ru": "нет", "en": "no", "pt": "não"}
+
+
+def reversed_word(lang: str, is_reversed: bool) -> str:
+    """
+    Слово 'да'/'нет' (или его эквивалент) для плейсхолдера {runeN_reversed}
+    внутри промпта GPT. Это не UI-текст интерфейса, а часть заполнения
+    шаблона промпта, поэтому не вынесено в ui/*.yaml.
+    """
+    d = _REVERSED_YES if is_reversed else _REVERSED_NO
+    return d.get(lang, d["ru"])

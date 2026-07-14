@@ -71,3 +71,4 @@ daily_reminder: "🎁Uma leitura gratuita está esperando! Descubra a resposta p
 
 # ── Nome padrão caso o Telegram não forneça first_name ──────────────────────────────
 default_stranger_name: "viajante"
+label_free: "grátis"

@@ -71,3 +71,4 @@ daily_reminder: "🎁A free reading is waiting! Discover the answer to your ques
 
 # ── Fallback name if Telegram didn't provide first_name ────────────────────────
 default_stranger_name: "wanderer"
+label_free: "free"

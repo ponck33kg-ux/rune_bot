@@ -1,0 +1,1 @@
+SUPPORTED_LANGUAGES = ("ru", "en", "pt")
