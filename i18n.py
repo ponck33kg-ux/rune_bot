@@ -81,8 +81,8 @@ def format_coins(n: int, lang: str) -> str:
     return f"{n} {word}"
 
 
-_REVERSED_YES = {"ru": "да", "en": "yes", "pt": "sim"}
-_REVERSED_NO  = {"ru": "нет", "en": "no", "pt": "não"}
+_REVERSED_YES = {"ru": "да", "en": "yes", "pt": "sim", "es": "sí"}
+_REVERSED_NO  = {"ru": "нет", "en": "no", "pt": "não", "es": "no"}
 
 
 def reversed_word(lang: str, is_reversed: bool) -> str:

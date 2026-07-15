@@ -1,0 +1,76 @@
+# ── Tiradas (usadas en SPREADS) ──────────────────────────────────────────────
+spread_single_name: "⚡ Chispa del Futhark"
+spread_single_desc: "1 runa — la voz del destino"
+spread_triple_name: "🌿 Sombra de Yggdrasil"
+spread_triple_desc: "3 runas — pasado, presente, futuro"
+spread_five_name: "🌌 Bastón de Odín"
+spread_five_desc: "5 runas — una tirada profunda"
+
+# ── Monedas — formas de la palabra para declinación (el código elige según el número) ──
+coin_form_one: "moneda"    # 1
+coin_form_many: "monedas"  # 0, 2+
+
+# ── Paquetes de monedas (la etiqueta se arma en el código con estas partes) ──
+pack_10_desc:  "5 monedas — 10 ⭐"
+pack_50_desc:  "25 monedas — 50 ⭐"
+pack_180_desc: "100 monedas — 180 ⭐"
+pack_800_desc: "500 monedas — 800 ⭐ 🔥"
+
+# ── Teclado de respuesta (menú principal) ────────────────────────────────────
+btn_casting: "🔮 Adivinación"
+btn_topup: "💰 Recargar saldo"
+
+# ── Botones inline ─────────────────────────────────────────────────────────────
+btn_subscribe_channel: "📢 Suscribirse al canal"
+btn_subscribed_confirm: "✅ ¡Ya me suscribí!"
+btn_next_question: "➡️ Haz tu siguiente pregunta"
+
+# ── /start ────────────────────────────────────────────────────────────────────
+subscribe_prompt: "🎁 ¡Suscríbete al canal y obtén 10 monedas gratis!"
+free_available: "✅ lectura gratuita disponible"
+free_used: "❌ lectura gratuita ya utilizada"
+start_welcome: "Bienvenido(a). Las runas guardan una sabiduría antigua.\n\n💰 Monedas: {coins}\n{free_text}\n\nDescribe tu situación y toca 🔮 Adivinación — el oráculo te escuchará."
+menu_button_oracle: "🌌 Oráculo"
+
+# ── /support ───────────────────────────────────────────────────────────────────
+support_text: "Para preguntas sobre el funcionamiento del bot, propuestas de colaboración y publicidad, contacta: @RuneSupport_Bot"
+
+# ── Saldo / recarga ────────────────────────────────────────────────────────────
+topup_prompt: "💰 Tu saldo: {coins} monedas\n\nCompra monedas — y deja que las runas abran tu camino.\nElige un paquete:"
+pack_not_found: "Paquete no encontrado."
+invoice_title: "Monedas de Odín"
+
+# ── Nueva adivinación ──────────────────────────────────────────────────────────
+new_casting_prompt: "Describe tu situación o haz una pregunta.\nLas runas te escucharán."
+
+# ── Suscripción al canal ────────────────────────────────────────────────────────
+not_subscribed_yet: "Todavía no te has suscrito al canal 🌑"
+subscribe_bonus_given: "¡Gracias por suscribirte! 10 monedas acreditadas ✨"
+subscribe_bonus_already_given: "El bono ya fue reclamado anteriormente."
+
+# ── Datos del Web App ──────────────────────────────────────────────────────────
+no_situation_received: "No se recibió ninguna pregunta. Intenta de nuevo."
+casting_already_in_progress: "Las runas ya fueron lanzadas — espera la respuesta."
+no_coins_for_spread: "No tienes monedas suficientes para esta tirada.\nRecarga tu saldo y continúa tu camino."
+
+# ── Pago ───────────────────────────────────────────────────────────────────────
+payment_success: "✨ Se acreditaron {coins} monedas a tu cuenta.\nLas runas esperan tu pregunta."
+
+# ── Flujo del chat ───────────────────────────────────────────────────────────────
+describe_situation_first: "Primero, describe tu situación o haz una pregunta."
+runes_ready_choose_spread: "Las runas están listas. Elige una tirada:"
+describe_situation_only: "Primero, describe tu situación."
+access_restricted: "Acceso restringido."
+
+# ── Adivinación ─────────────────────────────────────────────────────────────────
+runes_failed: "Las runas no pudieron abrirse. Intenta de nuevo."
+casting_result_header: "Tirada de runas para {first_name} sobre {recap}"
+
+# ── Recordatorio diario ─────────────────────────────────────────────────────────
+daily_reminder: "🎁¡Una lectura gratuita te espera! Descubre la respuesta a tu pregunta 💫"
+
+# ── Nombre por defecto si Telegram no da first_name ─────────────────────────────
+default_stranger_name: "viajero"
+
+# ── Etiqueta "gratis" para el botón de tirada triple ─────────────────────────────
+label_free: "gratis"

@@ -230,6 +230,7 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="setlang_ru")],
         [InlineKeyboardButton(text="🇬🇧 English", callback_data="setlang_en")],
         [InlineKeyboardButton(text="🇵🇹 Português", callback_data="setlang_pt")],
+        [InlineKeyboardButton(text="🇪🇸 Español", callback_data="setlang_es")],
     ])
 
 

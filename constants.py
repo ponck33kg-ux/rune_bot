@@ -1,1 +1,1 @@
-SUPPORTED_LANGUAGES = ("ru", "en", "pt")
+SUPPORTED_LANGUAGES = ("ru", "en", "pt", "es")
