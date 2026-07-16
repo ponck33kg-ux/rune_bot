@@ -863,7 +863,7 @@ async def handle_cast(request: web.Request):
 
 REMINDER_MSK = timezone(timedelta(hours=3))
 DAILY_REMINDER_HOUR_MSK = 11
-CHANNEL_REMINDER_HOUR_MSK = 19
+CHANNEL_REMINDER_HOUR_MSK = 20
 
 def _next_reminder_time_msk() -> datetime:
     now_msk = datetime.now(REMINDER_MSK)
