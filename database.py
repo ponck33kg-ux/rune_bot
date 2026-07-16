@@ -94,6 +94,12 @@ async def init_db():
                 PRIMARY KEY (user_id, sent_date)
             )
         """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS channel_subscribe_reminders (
+                user_id         BIGINT PRIMARY KEY REFERENCES users(user_id),
+                last_sent_date  DATE NOT NULL
+            )
+        """)
        
 async def close_db():
     global pool
@@ -455,4 +461,42 @@ async def has_chosen_language(user_id: int) -> bool:
             "SELECT interface_lang FROM users WHERE user_id = $1", user_id
         )
         return bool(row and row["interface_lang"] in SUPPORTED_LANGUAGES)
+
+CHANNEL_REMINDER_LANGUAGE_CODES = (
+    'ru', 'uk', 'be', 'kk', 'uz', 'ky', 'tg', 'az', 'hy', 'ka'
+)
+
+
+async def get_users_for_channel_reminder() -> list[int]:
+    """
+    Пользователи, которые ещё не подписались на канал (не забрали бонус),
+    не забанены, не заблокировали бота, чей язык интерфейса Telegram
+    (language_code — автоопределение, не выбор в боте) входит в список
+    языков региона СНГ/русскоязычной аудитории, и которым либо никогда
+    не слали напоминание про подписку, либо слали 3+ дня назад (по МСК-дате).
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        rows = await conn.fetch("""
+            SELECT u.user_id
+            FROM users u
+            LEFT JOIN channel_subscribe_reminders r ON r.user_id = u.user_id
+            WHERE u.is_banned = FALSE
+              AND u.bot_blocked = FALSE
+              AND u.channel_bonus_given = FALSE
+              AND u.language_code = ANY($1::text[])
+              AND (
+                    r.last_sent_date IS NULL
+                    OR r.last_sent_date <= (NOW() + interval '3 hours')::date - 3
+                  )
+        """, list(CHANNEL_REMINDER_LANGUAGE_CODES))
+        return [row["user_id"] for row in rows]
+
+
+async def mark_channel_reminder_sent(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO channel_subscribe_reminders (user_id, last_sent_date)
+            VALUES ($1, (NOW() + interval '3 hours')::date)
+            ON CONFLICT (user_id) DO UPDATE SET last_sent_date = EXCLUDED.last_sent_date
+        """, user_id)
         

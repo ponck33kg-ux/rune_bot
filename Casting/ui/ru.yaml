@@ -73,3 +73,4 @@ daily_reminder: "🎁Подарочное гадание начислено! У�
 # ── Fallback-имя, если Telegram не отдал first_name ──────────────────────
 default_stranger_name: "странник"
 label_free: "бесплатно"
+channel_reminder_text: "🎁 Подпишись на канал @runecast — получи 10 бесплатных монет для гаданий в боте и узнай, что руны говорят тебе!"

@@ -30,6 +30,7 @@ from database import (
     log_visit, update_user_geo,
     track_referral_click, track_referral_conversion,
     get_users_for_reminder, mark_reminder_sent, mark_bot_blocked,
+    get_users_for_channel_reminder, mark_channel_reminder_sent,
     get_user_language, set_user_language, has_chosen_language,
     SPREAD_COST,
 )
@@ -862,10 +863,19 @@ async def handle_cast(request: web.Request):
 
 REMINDER_MSK = timezone(timedelta(hours=3))
 DAILY_REMINDER_HOUR_MSK = 11
+CHANNEL_REMINDER_HOUR_MSK = 19
 
 def _next_reminder_time_msk() -> datetime:
     now_msk = datetime.now(REMINDER_MSK)
     target  = now_msk.replace(hour=DAILY_REMINDER_HOUR_MSK, minute=0, second=0, microsecond=0)
+    if target <= now_msk:
+        target += timedelta(days=1)
+    return target
+
+
+def _next_channel_reminder_time_msk() -> datetime:
+    now_msk = datetime.now(REMINDER_MSK)
+    target  = now_msk.replace(hour=CHANNEL_REMINDER_HOUR_MSK, minute=0, second=0, microsecond=0)
     if target <= now_msk:
         target += timedelta(days=1)
     return target
@@ -914,6 +924,51 @@ async def daily_reminder_scheduler():
             await send_daily_reminders()
         except Exception as e:
             print(f"Ошибка планировщика напоминаний: {e}")
+
+
+async def _send_channel_reminder(user_id: int):
+    reminder_text = t("ru", "channel_reminder_text")
+    try:
+        await bot.send_message(user_id, reminder_text)
+        await mark_channel_reminder_sent(user_id)
+    except TelegramForbiddenError:
+        await mark_bot_blocked(user_id)
+    except TelegramBadRequest as e:
+        if "chat not found" in str(e).lower():
+            await mark_bot_blocked(user_id)
+        else:
+            print(f"Ошибка отправки напоминания о подписке user_id={user_id}: {e}")
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        try:
+            await bot.send_message(user_id, reminder_text)
+            await mark_channel_reminder_sent(user_id)
+        except Exception as e2:
+            print(f"Ошибка повторной отправки напоминания о подписке user_id={user_id}: {e2}")
+    except Exception as e:
+        print(f"Ошибка отправки напоминания о подписке user_id={user_id}: {e}")
+
+
+async def send_channel_reminders():
+    users = await get_users_for_channel_reminder()
+    if not users:
+        return
+    print(f"Рассылка напоминаний о подписке: {len(users)} пользователей")
+    for user_id in users:
+        await _send_channel_reminder(user_id)
+        await asyncio.sleep(0.05)
+    print("Рассылка напоминаний о подписке завершена")
+
+
+async def channel_reminder_scheduler():
+    while True:
+        target       = _next_channel_reminder_time_msk()
+        wait_seconds = (target - datetime.now(REMINDER_MSK)).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        try:
+            await send_channel_reminders()
+        except Exception as e:
+            print(f"Ошибка планировщика напоминаний о подписке: {e}")
     
 # ── Запуск ────────────────────────────────────────────────────────────────────
 async def set_webhook_delayed():
@@ -937,6 +992,7 @@ async def on_startup(app: web.Application):
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(set_webhook_delayed())
     asyncio.create_task(daily_reminder_scheduler())
+    asyncio.create_task(channel_reminder_scheduler())
     print("Бот запущен")
 
 async def on_shutdown(app: web.Application):
