@@ -29,7 +29,7 @@ btn_next_question: "➡️ Faça sua próxima pergunta"
 subscribe_prompt: "🎁 Inscreva-se no canal e ganhe 10 moedas grátis!"
 free_available: "✅ leitura gratuita disponível"
 free_used: "❌ leitura gratuita já utilizada"
-start_welcome: "Bem-vindo(a). As runas guardam uma sabedoria antiga.\n\n💰 Moedas: {coins}\n{free_text}\n\nDescreva sua situação e toque em 🔮 Adivinhação — o oráculo vai ouvir você."
+start_welcome: "✨ TODOS OS DIAS VOCÊ TEM UMA LEITURA GRÁTIS! ✨\n\n💰 Moedas: {coins}\n{free_text}\n\nAs runas vão apontar o que está por trás da situação:\n- As forças e os obstáculos que atuam agora\n- A raiz da situação e o que a influencia\n- O resultado provável e o conselho das runas\n\nTente fazer sua pergunta agora e receba a tiragem com a interpretação\n👇👇👇"
 menu_button_oracle: "🌌 Oráculo"
 
 # ── /support ─────────────────────────────────────────────────────────────────────
