@@ -29,7 +29,7 @@ btn_next_question: "➡️ Ask your next question"
 subscribe_prompt: "🎁 Subscribe to the channel and get 10 free coins!"
 free_available: "✅ free reading available"
 free_used: "❌ free reading already used"
-start_welcome: "Welcome. The runes hold ancient wisdom.\n\n💰 Coins: {coins}\n{free_text}\n\nDescribe your situation and tap 🔮 Divination — the oracle will hear you."
+start_welcome: "✨ EVERY DAY YOU HAVE ONE FREE READING! ✨\n\n💰 Coins: {coins}\n{free_text}\n\nThe runes will reveal what lies behind the situation:\n- The forces and obstacles at work right now\n- The root of the situation and what's influencing it\n- The likely outcome and the runes' advice\n\nTry asking your question now and get a spread with a full interpretation\n👇👇👇"
 menu_button_oracle: "🌌 Oracle"
 
 # ── /support ─────────────────────────────────────────────────────────────────
