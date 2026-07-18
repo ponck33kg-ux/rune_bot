@@ -30,6 +30,7 @@ from database import (
     log_visit, update_user_geo,
     track_referral_click, track_referral_conversion,
     get_users_for_reminder, mark_reminder_sent, mark_bot_blocked,
+    get_users_for_reminder_pt, mark_reminder_sent_pt,
     get_users_for_channel_reminder, mark_channel_reminder_sent,
     get_user_language, set_user_language, has_chosen_language,
     SPREAD_COST,
@@ -867,10 +868,21 @@ REMINDER_MSK = timezone(timedelta(hours=3))
 DAILY_REMINDER_HOUR_MSK = 11
 CHANNEL_REMINDER_HOUR_MSK = 20
 
+REMINDER_RIO = timezone(timedelta(hours=-3))
+DAILY_REMINDER_HOUR_RIO = 10
+
 def _next_reminder_time_msk() -> datetime:
     now_msk = datetime.now(REMINDER_MSK)
     target  = now_msk.replace(hour=DAILY_REMINDER_HOUR_MSK, minute=0, second=0, microsecond=0)
     if target <= now_msk:
+        target += timedelta(days=1)
+    return target
+
+
+def _next_reminder_time_rio() -> datetime:
+    now_rio = datetime.now(REMINDER_RIO)
+    target  = now_rio.replace(hour=DAILY_REMINDER_HOUR_RIO, minute=0, second=0, microsecond=0)
+    if target <= now_rio:
         target += timedelta(days=1)
     return target
 
@@ -927,6 +939,49 @@ async def daily_reminder_scheduler():
         except Exception as e:
             print(f"Ошибка планировщика напоминаний: {e}")
 
+async def send_daily_reminders_pt():
+    user_ids = await get_users_for_reminder_pt()
+    if not user_ids:
+        return
+    print(f"Рассылка напоминаний (pt/Rio): {len(user_ids)} пользователей")
+    for user_id in user_ids:
+        await _send_reminder_pt(user_id)
+        await asyncio.sleep(0.05)
+    print("Рассылка напоминаний (pt/Rio) завершена")
+
+
+async def _send_reminder_pt(user_id: int):
+    reminder_text = t("pt", "daily_reminder")
+    try:
+        await bot.send_message(user_id, reminder_text)
+        await mark_reminder_sent_pt(user_id)
+    except TelegramForbiddenError:
+        await mark_bot_blocked(user_id)
+    except TelegramBadRequest as e:
+        if "chat not found" in str(e).lower():
+            await mark_bot_blocked(user_id)
+        else:
+            print(f"Ошибка отправки напоминания (pt) user_id={user_id}: {e}")
+    except TelegramRetryAfter as e:
+        await asyncio.sleep(e.retry_after)
+        try:
+            await bot.send_message(user_id, reminder_text)
+            await mark_reminder_sent_pt(user_id)
+        except Exception as e2:
+            print(f"Ошибка повторной отправки напоминания (pt) user_id={user_id}: {e2}")
+    except Exception as e:
+        print(f"Ошибка отправки напоминания (pt) user_id={user_id}: {e}")
+
+
+async def daily_reminder_scheduler_pt():
+    while True:
+        target       = _next_reminder_time_rio()
+        wait_seconds = (target - datetime.now(REMINDER_RIO)).total_seconds()
+        await asyncio.sleep(wait_seconds)
+        try:
+            await send_daily_reminders_pt()
+        except Exception as e:
+            print(f"Ошибка планировщика напоминаний (pt): {e}")
 
 async def _send_channel_reminder(user_id: int):
     reminder_text = t("ru", "channel_reminder_text")
@@ -994,6 +1049,7 @@ async def on_startup(app: web.Application):
     await bot.delete_webhook(drop_pending_updates=True)
     asyncio.create_task(set_webhook_delayed())
     asyncio.create_task(daily_reminder_scheduler())
+    asyncio.create_task(daily_reminder_scheduler_pt())
     asyncio.create_task(channel_reminder_scheduler())
     print("Бот запущен")
 

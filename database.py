@@ -95,6 +95,13 @@ async def init_db():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS daily_reminders_pt (
+                user_id    BIGINT NOT NULL,
+                sent_date  DATE NOT NULL,
+                PRIMARY KEY (user_id, sent_date)
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS channel_subscribe_reminders (
                 user_id         BIGINT PRIMARY KEY REFERENCES users(user_id),
                 last_sent_date  DATE NOT NULL
@@ -379,16 +386,17 @@ async def track_referral_conversion(code: str):
 async def get_users_for_reminder() -> list[tuple[int, str]]:
     """
     Пользователи, у которых бесплатное гадание фактически доступно
-    на момент рассылки (11:00 МСК), не забанены, не заблокировали бота
-    и ещё не получали напоминание сегодня (по МСК-дате).
-    Возвращает пары (user_id, interface_lang), чтобы разослать каждому
-    на его языке.
+    на момент рассылки (11:00 МСК), не забанены, не заблокировали бота,
+    НЕ выбрали португальский (для них отдельная рассылка по времени Рио —
+    см. get_users_for_reminder_pt), и ещё не получали напоминание сегодня
+    (по МСК-дате).
     """
     async with pool.acquire() as conn:  # type: ignore
         rows = await conn.fetch("""
             SELECT user_id, interface_lang FROM users
             WHERE is_banned = FALSE
               AND bot_blocked = FALSE
+              AND interface_lang IS DISTINCT FROM 'pt'
               AND (
                     free_used_today = 0
                     OR (free_reset_at + interval '3 hours')::date
@@ -499,4 +507,37 @@ async def mark_channel_reminder_sent(user_id: int):
             VALUES ($1, (NOW() + interval '3 hours')::date)
             ON CONFLICT (user_id) DO UPDATE SET last_sent_date = EXCLUDED.last_sent_date
         """, user_id)
-        
+async def get_users_for_reminder_pt() -> list[int]:
+    """
+    Пользователи с interface_lang = 'pt' (считаем бразильцами по умолчанию),
+    у которых бесплатное гадание доступно на момент рассылки (10:00 по времени
+    Рио), не забанены, не заблокировали бота, и ещё не получали это напоминание
+    сегодня (по дате Рио).
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        rows = await conn.fetch("""
+            SELECT user_id FROM users
+            WHERE is_banned = FALSE
+              AND bot_blocked = FALSE
+              AND interface_lang = 'pt'
+              AND (
+                    free_used_today = 0
+                    OR (free_reset_at - interval '3 hours')::date
+                       < (NOW() - interval '3 hours')::date
+                  )
+              AND NOT EXISTS (
+                    SELECT 1 FROM daily_reminders_pt
+                    WHERE daily_reminders_pt.user_id = users.user_id
+                      AND daily_reminders_pt.sent_date = (NOW() - interval '3 hours')::date
+              )
+        """)
+        return [row["user_id"] for row in rows]
+
+
+async def mark_reminder_sent_pt(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO daily_reminders_pt (user_id, sent_date)
+            VALUES ($1, (NOW() - interval '3 hours')::date)
+            ON CONFLICT (user_id, sent_date) DO NOTHING
+        """, user_id)
