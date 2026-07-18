@@ -9,8 +9,9 @@ def log_casting(
     latency_ms: int,
     source: str = "bot",
     situation: str = "",
+    answer_text: str = "",
 ):
-    asyncio.create_task(_log(user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation))
+    asyncio.create_task(_log(user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation, answer_text))
 
 
 async def _log(
@@ -22,14 +23,15 @@ async def _log(
     latency_ms: int,
     source: str,
     situation: str,
+    answer_text: str,
 ):
     try:
         from database import pool
         async with pool.acquire() as conn: # type: ignore
             await conn.execute("""
                 INSERT INTO castings
-                    (user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-            """, user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation)
+                    (user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation, response)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            """, user_id, spread_type, stars, input_tokens, output_tokens, latency_ms, source, situation, answer_text)
     except Exception as e:
         print(f"Analytics error: {e}")

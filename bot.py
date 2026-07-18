@@ -678,6 +678,7 @@ async def _perform_casting(
             latency_ms=latency_ms,
             source="bot",
             situation=situation,
+            answer_text=interpretation,
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")
@@ -830,6 +831,7 @@ async def handle_cast(request: web.Request):
                 latency_ms=latency_ms,
                 source="miniapp",
                 situation=situation,
+                answer_text=interpretation,
             )
 
         except Exception as e:
