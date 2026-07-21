@@ -67,7 +67,7 @@ runes_failed: "The runes could not open. Please try again."
 casting_result_header: "Rune spread for {first_name} on {recap}"
 
 # ── Daily reminder ─────────────────────────────────────────────────────────────
-daily_reminder: "🎁A free reading is waiting! Discover the answer to your question 💫"
+daily_reminder: "🎁A free reading has been credited. Discover what the runes have prepared for you today! 💫"
 
 # ── Fallback name if Telegram didn't provide first_name ────────────────────────
 default_stranger_name: "wanderer"
