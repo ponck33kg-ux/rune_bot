@@ -102,6 +102,16 @@ async def init_db():
             )
         """)
         await conn.execute("""
+            CREATE TABLE IF NOT EXISTS user_zodiac (
+                user_id      BIGINT PRIMARY KEY REFERENCES users(user_id),
+                raw_input    TEXT,
+                birth_date   DATE,
+                zodiac_sign  TEXT,
+                skipped      BOOLEAN DEFAULT FALSE,
+                created_at   TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
             CREATE TABLE IF NOT EXISTS channel_subscribe_reminders (
                 user_id         BIGINT PRIMARY KEY REFERENCES users(user_id),
                 last_sent_date  DATE NOT NULL
@@ -540,4 +550,43 @@ async def mark_reminder_sent_pt(user_id: int):
             INSERT INTO daily_reminders_pt (user_id, sent_date)
             VALUES ($1, (NOW() - interval '3 hours')::date)
             ON CONFLICT (user_id, sent_date) DO NOTHING
+        """, user_id)
+
+async def has_birthdate_record(user_id: int) -> bool:
+    """
+    Проверить, была ли уже задана дата рождения ИЛИ нажата кнопка "Пропустить".
+    В обоих случаях повторно этот шаг показывать не нужно.
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow(
+            "SELECT 1 FROM user_zodiac WHERE user_id = $1", user_id
+        )
+        return row is not None
+
+
+async def save_birthdate(user_id: int, raw_input: str, birth_date=None, zodiac_sign: str | None = None):
+    """
+    Сохранить ответ пользователя на шаге "дата рождения". raw_input сохраняется
+    всегда, каким бы ни был введённый текст. birth_date/zodiac_sign заполняются
+    только если удалось распознать дату — если нет, остаются NULL, запись
+    всё равно сохраняется без повторного запроса у пользователя.
+    """
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO user_zodiac (user_id, raw_input, birth_date, zodiac_sign, skipped)
+            VALUES ($1, $2, $3, $4, FALSE)
+            ON CONFLICT (user_id) DO UPDATE
+                SET raw_input = EXCLUDED.raw_input,
+                    birth_date = EXCLUDED.birth_date,
+                    zodiac_sign = EXCLUDED.zodiac_sign,
+                    skipped = FALSE
+        """, user_id, raw_input, birth_date, zodiac_sign)
+
+
+async def save_birthdate_skipped(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO user_zodiac (user_id, skipped)
+            VALUES ($1, TRUE)
+            ON CONFLICT (user_id) DO NOTHING
         """, user_id)

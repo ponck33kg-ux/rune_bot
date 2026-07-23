@@ -74,3 +74,6 @@ default_stranger_name: "viajero"
 
 # ── Etiqueta "gratis" para el botón de tirada triple ─────────────────────────────
 label_free: "gratis"
+btn_skip: "Omitir"
+birthdate_prompt: "Por favor, escribe tu fecha de nacimiento en el formato que prefieras. O toca «Omitir» para pasar directamente a tu lectura."
+start_welcome_new: "✨ ¡CADA DÍA TIENES UNA LECTURA GRATIS! ✨\n\n💰 Monedas: {coins}\n{free_text}\n\nLas runas te mostrarán lo que hay detrás de la situación:\n- Las fuerzas y obstáculos que actúan ahora mismo\n- La raíz de la situación y qué la está influyendo\n- El resultado probable y el consejo de las runas\n\n¡Hazle tu pregunta a las runas ahora mismo! ¿Qué quieres saber?"

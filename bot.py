@@ -33,8 +33,10 @@ from database import (
     get_users_for_reminder_pt, mark_reminder_sent_pt,
     get_users_for_channel_reminder, mark_channel_reminder_sent,
     get_user_language, set_user_language, has_chosen_language,
+    has_birthdate_record, save_birthdate, save_birthdate_skipped,
     SPREAD_COST,
 )
+from zodiac import get_zodiac_sign
 from constants import SUPPORTED_LANGUAGES
 
 from i18n import (
@@ -95,7 +97,7 @@ dp  = Dispatcher()
 # ── In-memory состояние пользователей ─────────────────────────────────────────
 user_states: dict[int, dict] = {}
 casting_in_progress: set[int] = set()
-
+awaiting_birthdate: dict[int, dict] = {}
 
 # ── Логика рун ────────────────────────────────────────────────────────────────
 
@@ -234,16 +236,27 @@ def get_language_keyboard() -> InlineKeyboardMarkup:
         [InlineKeyboardButton(text="🇵🇹 Português", callback_data="setlang_pt")],
         [InlineKeyboardButton(text="🇪🇸 Español", callback_data="setlang_es")],
     ])
-
+    
+def get_skip_birthdate_keyboard(lang: str) -> InlineKeyboardMarkup:
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t(lang, "btn_skip"), callback_data="skip_birthdate")],
+    ])
 
 # ── Команды ───────────────────────────────────────────────────────────────────
 
-async def _do_start(chat_id: int, user_id: int, username: str | None, first_name: str | None, lang: str):
+async def _do_start(
+    chat_id: int, user_id: int, username: str | None, first_name: str | None,
+    lang: str, welcome_key: str = "start_welcome",
+):
     """
     Основной флоу приветствия — общий для cmd_start (когда язык уже выбран)
-    и handle_language_selection (сразу после выбора языка).
-    Принимает явные параметры, а не Message/CallbackQuery, чтобы не путать
-    from_user бота (в callback.message) с from_user реального пользователя.
+    и handle_language_selection (сразу после выбора языка / после шага с датой
+    рождения). Принимает явные параметры, а не Message/CallbackQuery, чтобы
+    не путать from_user бота (в callback.message) с from_user реального
+    пользователя.
+    welcome_key — какой ключ приветствия использовать: обычный "start_welcome"
+    (не меняется для старых пользователей) или "start_welcome_new" (с приглашающим
+    вопросом, показывается один раз сразу после шага с датой рождения).
     """
     try:
         member = await bot.get_chat_member(CHANNEL_USERNAME, user_id)
@@ -267,7 +280,7 @@ async def _do_start(chat_id: int, user_id: int, username: str | None, first_name
 
     await bot.send_message(
         chat_id,
-        t(lang, "start_welcome", coins=coins, free_text=free_text),
+        t(lang, welcome_key, coins=coins, free_text=free_text),
         reply_markup=get_main_keyboard(lang)
     )
 
@@ -348,14 +361,99 @@ async def handle_language_selection(callback: CallbackQuery):
     except TelegramBadRequest:
         pass
 
+    chat_id    = callback.message.chat.id
+    username   = callback.from_user.username
+    first_name = callback.from_user.first_name
+
+    # Португальских пользователей не трогаем — у них флоу как раньше.
+    # Остальных спрашиваем дату рождения, только если ещё не спрашивали.
+    if lang != "pt" and not await has_birthdate_record(user_id):
+        awaiting_birthdate[user_id] = {
+            "chat_id": chat_id, "lang": lang,
+            "username": username, "first_name": first_name,
+        }
+        await bot.send_message(
+            chat_id,
+            t(lang, "birthdate_prompt"),
+            reply_markup=get_skip_birthdate_keyboard(lang)
+        )
+        return
+
     await _do_start(
-        chat_id=callback.message.chat.id,
-        user_id=user_id,
-        username=callback.from_user.username,
-        first_name=callback.from_user.first_name,
-        lang=lang,
+        chat_id=chat_id, user_id=user_id,
+        username=username, first_name=first_name, lang=lang,
     )
 
+def _is_awaiting_birthdate(message: Message) -> bool:
+    return bool(message.from_user) and message.from_user.id in awaiting_birthdate
+
+
+def _try_parse_birthdate(text: str):
+    """
+    Пробуем распознать дату в нескольких распространённых форматах.
+    Если не получилось — просто возвращаем None, это НЕ ошибка: исходный
+    текст в любом случае будет сохранён как есть (raw_input), без повторного
+    запроса у пользователя.
+    """
+    text = text.strip()
+    for fmt in ("%d.%m.%Y", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y", "%Y-%m-%d"):
+        try:
+            parsed = datetime.strptime(text, fmt).date()
+            if 1900 <= parsed.year <= datetime.now().year:
+                return parsed
+        except ValueError:
+            continue
+    return None
+
+
+@dp.message(_is_awaiting_birthdate)
+async def handle_birthdate_input(message: Message):
+    if not message.from_user or not message.text:
+        return
+    user_id = message.from_user.id
+    state   = awaiting_birthdate.get(user_id)
+    if not state:
+        return
+    lang = state["lang"]
+
+    raw_input   = message.text[:200]
+    birth_date  = _try_parse_birthdate(raw_input)
+    zodiac_sign = get_zodiac_sign(birth_date) if birth_date else None
+
+    await save_birthdate(user_id, raw_input, birth_date, zodiac_sign)
+    awaiting_birthdate.pop(user_id, None)
+
+    await _do_start(
+        chat_id=state["chat_id"], user_id=user_id,
+        username=state["username"], first_name=state["first_name"],
+        lang=lang, welcome_key="start_welcome_new",
+    )
+
+
+@dp.callback_query(F.data == "skip_birthdate")
+async def handle_skip_birthdate(callback: CallbackQuery):
+    if not callback.from_user or not callback.message:
+        return
+    user_id = callback.from_user.id
+    state   = awaiting_birthdate.get(user_id)
+    await callback.answer()
+
+    if not state:
+        return
+
+    await save_birthdate_skipped(user_id)
+    awaiting_birthdate.pop(user_id, None)
+
+    try:
+        await callback.message.delete()  # type: ignore
+    except TelegramBadRequest:
+        pass
+
+    await _do_start(
+        chat_id=state["chat_id"], user_id=user_id,
+        username=state["username"], first_name=state["first_name"],
+        lang=state["lang"], welcome_key="start_welcome_new",
+    )
 
 @dp.message(Command("support"))
 async def cmd_support(message: Message):

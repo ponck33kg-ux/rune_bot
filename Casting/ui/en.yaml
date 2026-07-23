@@ -72,3 +72,6 @@ daily_reminder: "🎁A free reading has been credited. Discover what the runes h
 # ── Fallback name if Telegram didn't provide first_name ────────────────────────
 default_stranger_name: "wanderer"
 label_free: "free"
+btn_skip: "Skip"
+birthdate_prompt: "Please write your birth date in any format that's convenient for you. Or tap «Skip» to go straight to your reading."
+start_welcome_new: "✨ EVERY DAY YOU HAVE ONE FREE READING! ✨\n\n💰 Coins: {coins}\n{free_text}\n\nThe runes will reveal what lies behind the situation:\n- The forces and obstacles at work right now\n- The root of the situation and what's influencing it\n- The likely outcome and the runes' advice\n\nAsk the runes your question right now! What do you want to know?"
