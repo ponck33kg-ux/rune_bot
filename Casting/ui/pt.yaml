@@ -72,3 +72,11 @@ daily_reminder: "🎁Uma leitura gratuita foi creditada. Descubra o que as runas
 # ── Nome padrão caso o Telegram não forneça first_name ──────────────────────────────
 default_stranger_name: "viajante"
 label_free: "grátis"
+btn_gift: "🎁 Código de presente"
+gift_button_hint: "Para ativar um código de presente, envie o comando:\n/gift CÓDIGO"
+gift_missing_code: "Digite o código assim:\n/gift CÓDIGO"
+gift_too_many_attempts: "Muitas tentativas. Tente novamente mais tarde."
+gift_activated: "🎁 Código ativado! {coins} moedas adicionadas."
+gift_already_used: "Este código já foi usado na sua conta."
+gift_banned: "Conta restrita."
+gift_invalid: "Este código é inválido ou não está mais ativo."

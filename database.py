@@ -117,6 +117,29 @@ async def init_db():
                 last_sent_date  DATE NOT NULL
             )
         """)
+
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS gift_codes (
+                code              TEXT PRIMARY KEY,
+                coins_amount      INT NOT NULL,
+                max_activations   INT,
+                activations_used  INT NOT NULL DEFAULT 0,
+                is_active         BOOLEAN NOT NULL DEFAULT TRUE,
+                expires_at        TIMESTAMP WITH TIME ZONE,
+                comment           TEXT,
+                created_at        TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+            )
+        """)
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS gift_code_redemptions (
+                id            SERIAL PRIMARY KEY,
+                code          TEXT NOT NULL REFERENCES gift_codes(code),
+                user_id       BIGINT NOT NULL REFERENCES users(user_id),
+                coins_amount  INT NOT NULL,
+                created_at    TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                UNIQUE (code, user_id)
+            )
+        """)
        
 async def close_db():
     global pool
@@ -590,3 +613,75 @@ async def save_birthdate_skipped(user_id: int):
             VALUES ($1, TRUE)
             ON CONFLICT (user_id) DO NOTHING
         """, user_id)
+        async def save_birthdate_skipped(user_id: int):
+    async with pool.acquire() as conn:  # type: ignore
+        await conn.execute("""
+            INSERT INTO user_zodiac (user_id, skipped)
+            VALUES ($1, TRUE)
+            ON CONFLICT (user_id) DO NOTHING
+        """, user_id)
+
+
+async def redeem_gift_code(user_id: int, code: str) -> dict:
+    """
+    Активировать подарочный код.
+    Возвращает {"status": ..., "coins_amount": int | None}
+    status:
+      'ok'           — код активирован, монеты начислены
+      'not_found'    — код не существует или деактивирован
+      'expired'      — код истёк
+      'exhausted'    — исчерпан лимит активаций
+      'already_used' — этот пользователь уже использовал этот код
+      'banned'       — пользователь заблокирован
+    """
+    code = code.strip().upper()
+
+    async with pool.acquire() as conn:  # type: ignore
+        async with conn.transaction():
+            user = await conn.fetchrow(
+                "SELECT is_banned FROM users WHERE user_id = $1", user_id
+            )
+            if user and user["is_banned"]:
+                return {"status": "banned", "coins_amount": None}
+
+            gift = await conn.fetchrow("""
+                SELECT * FROM gift_codes
+                WHERE code = $1
+                FOR UPDATE
+            """, code)
+
+            if not gift or not gift["is_active"]:
+                return {"status": "not_found", "coins_amount": None}
+
+            if gift["expires_at"] and gift["expires_at"] < datetime.now(timezone.utc):
+                return {"status": "expired", "coins_amount": None}
+
+            if gift["max_activations"] is not None and gift["activations_used"] >= gift["max_activations"]:
+                return {"status": "exhausted", "coins_amount": None}
+
+            inserted = await conn.fetchrow("""
+                INSERT INTO gift_code_redemptions (code, user_id, coins_amount)
+                VALUES ($1, $2, $3)
+                ON CONFLICT (code, user_id) DO NOTHING
+                RETURNING id
+            """, code, user_id, gift["coins_amount"])
+
+            if not inserted:
+                return {"status": "already_used", "coins_amount": None}
+
+            await conn.execute("""
+                UPDATE gift_codes SET activations_used = activations_used + 1
+                WHERE code = $1
+            """, code)
+
+            await conn.execute("""
+                UPDATE users SET coins_balance = coins_balance + $1
+                WHERE user_id = $2
+            """, gift["coins_amount"], user_id)
+
+            await conn.execute("""
+                INSERT INTO transactions (user_id, type, coins_amount)
+                VALUES ($1, 'gift_code', $2)
+            """, user_id, gift["coins_amount"])
+
+            return {"status": "ok", "coins_amount": gift["coins_amount"]}

@@ -7,6 +7,7 @@ import hmac
 import hashlib
 import json
 import random
+import time
 from urllib.parse import parse_qsl
 from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
@@ -34,6 +35,7 @@ from database import (
     get_users_for_channel_reminder, mark_channel_reminder_sent,
     get_user_language, set_user_language, has_chosen_language,
     has_birthdate_record, save_birthdate, save_birthdate_skipped,
+    redeem_gift_code,
     SPREAD_COST,
 )
 from zodiac import get_zodiac_sign
@@ -179,6 +181,7 @@ def get_main_keyboard(lang: str) -> ReplyKeyboardMarkup:
         keyboard=[
             [KeyboardButton(text=t(lang, "btn_casting"))],
             [KeyboardButton(text=t(lang, "btn_topup"))],
+            [KeyboardButton(text=t(lang, "btn_gift"))],
         ],
         resize_keyboard=True,
         persistent=True,
@@ -660,7 +663,68 @@ async def handle_casting_button(message: Message):
         return
     lang = await get_user_language(message.from_user.id)
     await message.answer(t(lang, "describe_situation_first"))
-    
+
+
+# ── Подарочные коды ───────────────────────────────────────────────────────────
+
+GIFT_ATTEMPT_LIMIT  = 5
+GIFT_ATTEMPT_WINDOW = 600  # 10 минут
+
+gift_code_attempts: dict[int, list[float]] = {}
+
+
+def _gift_attempts_exceeded(user_id: int) -> bool:
+    now      = time.monotonic()
+    attempts = [t for t in gift_code_attempts.get(user_id, []) if now - t < GIFT_ATTEMPT_WINDOW]
+    gift_code_attempts[user_id] = attempts
+    return len(attempts) >= GIFT_ATTEMPT_LIMIT
+
+
+def _record_gift_attempt(user_id: int):
+    gift_code_attempts.setdefault(user_id, []).append(time.monotonic())
+
+
+@dp.message(Command("gift"))
+async def handle_gift_command(message: Message):
+    if not message.from_user:
+        return
+    user_id = message.from_user.id
+    lang    = await get_user_language(user_id)
+    parts   = (message.text or "").split(maxsplit=1)
+
+    if len(parts) < 2 or not parts[1].strip():
+        await message.answer(t(lang, "gift_missing_code"))
+        return
+
+    if _gift_attempts_exceeded(user_id):
+        await message.answer(t(lang, "gift_too_many_attempts"))
+        return
+
+    code   = parts[1].strip()
+    result = await redeem_gift_code(user_id, code)
+
+    if result["status"] == "ok":
+        await message.answer(t(lang, "gift_activated", coins=result["coins_amount"]))
+    elif result["status"] == "already_used":
+        _record_gift_attempt(user_id)
+        await message.answer(t(lang, "gift_already_used"))
+    elif result["status"] == "banned":
+        await message.answer(t(lang, "gift_banned"))
+    else:
+        # not_found, expired, exhausted — один и тот же текст,
+        # чтобы не облегчать подбор действующих кодов
+        _record_gift_attempt(user_id)
+        await message.answer(t(lang, "gift_invalid"))
+
+
+@dp.message(F.text.in_(["🎁 Подарочный код", "🎁 Gift code", "🎁 Código de presente", "🎁 Código de regalo"]))
+async def handle_gift_button(message: Message):
+    if not message.from_user:
+        return
+    lang = await get_user_language(message.from_user.id)
+    await message.answer(t(lang, "gift_button_hint"))
+
+
 @dp.message()
 async def handle_message(message: Message):
     if not message.from_user:
