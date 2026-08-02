@@ -613,13 +613,6 @@ async def save_birthdate_skipped(user_id: int):
             VALUES ($1, TRUE)
             ON CONFLICT (user_id) DO NOTHING
         """, user_id)
-        async def save_birthdate_skipped(user_id: int):
-    async with pool.acquire() as conn:  # type: ignore
-        await conn.execute("""
-            INSERT INTO user_zodiac (user_id, skipped)
-            VALUES ($1, TRUE)
-            ON CONFLICT (user_id) DO NOTHING
-        """, user_id)
 
 
 async def redeem_gift_code(user_id: int, code: str) -> dict:
