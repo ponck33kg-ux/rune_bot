@@ -67,7 +67,7 @@ runes_failed: "As runas não conseguiram se abrir. Tente novamente."
 casting_result_header: "Tiragem de runas para {first_name} sobre {recap}"
 
 # ── Lembrete diário ───────────────────────────────────────────────────────────────
-daily_reminder: "🎁Uma leitura gratuita foi creditada. Descubra o que as runas prepararam para você hoje! 💫"
+daily_reminder: "🎁Uma leitura gratuita foi creditada! Faça sua pergunta às runas e descubra a resposta agora mesmo 💫"
 
 # ── Nome padrão caso o Telegram não forneça first_name ──────────────────────────────
 default_stranger_name: "viajante"
