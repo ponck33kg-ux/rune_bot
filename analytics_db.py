@@ -25,5 +25,9 @@ async def init_castings_table():
             ALTER TABLE castings
                 ADD COLUMN IF NOT EXISTS response TEXT
         """)
+        await conn.execute("""
+            ALTER TABLE castings
+                ADD COLUMN IF NOT EXISTS prompt_variant TEXT
+        """)
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_castings_user_id ON castings (user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_castings_created_at ON castings (created_at)")

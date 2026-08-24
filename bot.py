@@ -34,6 +34,7 @@ from database import (
     get_users_for_reminder_pt, mark_reminder_sent_pt,
     get_users_for_channel_reminder, mark_channel_reminder_sent,
     get_user_language, set_user_language, has_chosen_language,
+    assign_prompt_variant, get_prompt_variant,
     has_birthdate_record, save_birthdate, save_birthdate_skipped,
     redeem_gift_code,
     SPREAD_COST,
@@ -161,11 +162,12 @@ def cast_runes_i18n(count: int, lang: str) -> list[dict]:
     return result
 
 
-def build_prompt_i18n(lang: str, spread_type: str, situation: str, runes: list[dict]) -> str:
+def build_prompt_i18n(lang: str, spread_type: str, situation: str, runes: list[dict], variant: str | None = None) -> str:
     """
     Версия build_prompt для чат-флоу — берёт шаблон из Casting/prompts/{lang}.yaml.
+    Для lang="ru" и variant="b" берёт альтернативный промпт (A/B тест).
     """
-    template = get_prompt_data(lang)[spread_type]
+    template = get_prompt_data(lang, variant)[spread_type]
     kwargs   = {"situation": situation}
     for i, rune in enumerate(runes, 1):
         kwargs[f"rune{i}_name"]     = rune["name"]
@@ -357,6 +359,8 @@ async def handle_language_selection(callback: CallbackQuery):
 
     user_id = callback.from_user.id
     await set_user_language(user_id, lang)
+    if lang == "ru":
+        await assign_prompt_variant(user_id)
     await callback.answer()
 
     try:
@@ -811,12 +815,13 @@ async def _perform_casting(
     user_id: int, spread_type: str, situation: str,
     first_name: str, chat_id: int, check_result: str, lang: str,
 ):
-    runes = cast_runes_i18n(SPREADS[spread_type]["count"], lang)
+    runes   = cast_runes_i18n(SPREADS[spread_type]["count"], lang)
+    variant = await get_prompt_variant(user_id) if lang == "ru" else None
 
     try:
         await bot.send_chat_action(chat_id, "typing")
-        prompt        = build_prompt_i18n(lang, spread_type, situation, runes)
-        system_prompt = get_system_prompt(lang)
+        prompt        = build_prompt_i18n(lang, spread_type, situation, runes, variant=variant)
+        system_prompt = get_system_prompt(lang, variant)
 
         start_time = datetime.now()
         response   = await asyncio.to_thread(
@@ -842,6 +847,7 @@ async def _perform_casting(
             source="bot",
             situation=situation,
             answer_text=interpretation,
+            prompt_variant=variant,
         )
     except Exception as e:
         print(f"ОШИБКА модели: {e}")

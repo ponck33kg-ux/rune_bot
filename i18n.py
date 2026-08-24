@@ -24,6 +24,12 @@ def load_i18n():
         with open(f"Casting/runes/{lang}.yaml", encoding="utf-8") as f:
             _RUNES[lang] = yaml.safe_load(f)["runes"]
 
+    # A/B тест промптов — только для ru, вариант B
+    with open("Casting/prompts/ru_b.yaml", encoding="utf-8") as f:
+        prompts_data_b = yaml.safe_load(f)
+        _PROMPTS["ru_b"] = prompts_data_b["prompts"]
+        _SYSTEM_PROMPTS["ru_b"] = prompts_data_b["system"]
+
 
 def t(lang: str, key: str, **kwargs) -> str:
     """
@@ -37,13 +43,17 @@ def t(lang: str, key: str, **kwargs) -> str:
     return template.format(**kwargs) if kwargs else template
 
 
-def get_prompt_data(lang: str) -> dict:
+def get_prompt_data(lang: str, variant: str | None = None) -> dict:
     """Вернуть словарь шаблонов промптов (single/triple/five/greetings) для языка."""
+    if lang == "ru" and variant == "b":
+        return _PROMPTS.get("ru_b") or _PROMPTS["ru"]
     return _PROMPTS.get(lang) or _PROMPTS["ru"]
 
 
-def get_system_prompt(lang: str) -> str:
+def get_system_prompt(lang: str, variant: str | None = None) -> str:
     """Вернуть системный промпт для языка."""
+    if lang == "ru" and variant == "b":
+        return _SYSTEM_PROMPTS.get("ru_b") or _SYSTEM_PROMPTS["ru"]
     return _SYSTEM_PROMPTS.get(lang) or _SYSTEM_PROMPTS["ru"]
 
 

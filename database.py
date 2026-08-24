@@ -1,4 +1,5 @@
 import os
+import random
 import asyncpg
 from datetime import datetime, timezone, timedelta
 from constants import SUPPORTED_LANGUAGES
@@ -78,7 +79,8 @@ async def init_db():
                 ADD COLUMN IF NOT EXISTS language_code TEXT,
                 ADD COLUMN IF NOT EXISTS country_code  TEXT,
                 ADD COLUMN IF NOT EXISTS city          TEXT,
-                ADD COLUMN IF NOT EXISTS interface_lang TEXT
+                ADD COLUMN IF NOT EXISTS interface_lang TEXT,
+                ADD COLUMN IF NOT EXISTS prompt_variant TEXT
         """)
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_user_id ON user_visits (user_id)")
         await conn.execute("CREATE INDEX IF NOT EXISTS idx_user_visits_created_at ON user_visits (created_at)")
@@ -502,6 +504,33 @@ async def has_chosen_language(user_id: int) -> bool:
             "SELECT interface_lang FROM users WHERE user_id = $1", user_id
         )
         return bool(row and row["interface_lang"] in SUPPORTED_LANGUAGES)
+
+
+async def assign_prompt_variant(user_id: int) -> str:
+    """
+    Назначить пользователю группу A/B теста промптов, если ещё не назначена.
+    Атомарно через COALESCE — повторный вызов для уже назначенного
+    пользователя ничего не меняет и возвращает существующее значение.
+    """
+    variant = random.choice(["a", "b"])
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow("""
+            UPDATE users
+            SET prompt_variant = COALESCE(prompt_variant, $2)
+            WHERE user_id = $1
+            RETURNING prompt_variant
+        """, user_id, variant)
+        return row["prompt_variant"] if row else variant
+
+
+async def get_prompt_variant(user_id: int) -> str | None:
+    """Вернуть назначенную группу A/B теста промптов ('a' / 'b' / None, если не назначена)."""
+    async with pool.acquire() as conn:  # type: ignore
+        row = await conn.fetchrow(
+            "SELECT prompt_variant FROM users WHERE user_id = $1", user_id
+        )
+        return row["prompt_variant"] if row else None
+
 
 CHANNEL_REMINDER_LANGUAGE_CODES = (
     'ru', 'uk', 'be', 'kk', 'uz', 'ky', 'tg', 'az', 'hy', 'ka'
