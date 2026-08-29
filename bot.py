@@ -71,7 +71,10 @@ SPREADS = {
     "triple": {"count": 3, "cost": SPREAD_COST["triple"]},
     "five":   {"count": 5, "cost": SPREAD_COST["five"]},
 }
-
+# Победивший вариант A/B теста промптов — временно назначается всем новым
+# ru-пользователям вместо случайного разделения. Чтобы запустить новый тест,
+# верни None и повтори разовый SQL для сброса + случайного разделения.
+DEFAULT_RU_PROMPT_VARIANT: str | None = "b"
 # ── Пакеты монет ──────────────────────────────────────────────────────────────
 
 PACKAGES = {
@@ -360,7 +363,7 @@ async def handle_language_selection(callback: CallbackQuery):
     user_id = callback.from_user.id
     await set_user_language(user_id, lang)
     if lang == "ru":
-        await assign_prompt_variant(user_id)
+        await assign_prompt_variant(user_id, variant=DEFAULT_RU_PROMPT_VARIANT)
     await callback.answer()
 
     try:

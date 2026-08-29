@@ -506,21 +506,25 @@ async def has_chosen_language(user_id: int) -> bool:
         return bool(row and row["interface_lang"] in SUPPORTED_LANGUAGES)
 
 
-async def assign_prompt_variant(user_id: int) -> str:
+async def assign_prompt_variant(user_id: int, variant: str | None = None) -> str:
     """
-    Назначить пользователю группу A/B теста промптов, если ещё не назначена.
+    Назначить пользователю группу теста промптов, если ещё не назначена.
+    Если variant передан явно ('a' / 'b') — используется он, без броска монеты.
+    Это позволяет временно переводить всех новых пользователей на конкретный
+    вариант (например, победивший в прошлом тесте), не трогая логику ниже.
+    Если variant не передан — обычный случайный режим A/B теста 50/50.
     Атомарно через COALESCE — повторный вызов для уже назначенного
     пользователя ничего не меняет и возвращает существующее значение.
     """
-    variant = random.choice(["a", "b"])
+    chosen = variant if variant is not None else random.choice(["a", "b"])
     async with pool.acquire() as conn:  # type: ignore
         row = await conn.fetchrow("""
             UPDATE users
             SET prompt_variant = COALESCE(prompt_variant, $2)
             WHERE user_id = $1
             RETURNING prompt_variant
-        """, user_id, variant)
-        return row["prompt_variant"] if row else variant
+        """, user_id, chosen)
+        return row["prompt_variant"] if row else chosen
 
 
 async def get_prompt_variant(user_id: int) -> str | None:
